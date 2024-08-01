@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.5
 
 require (
-	go.aporeto.io/addedeffect v1.77.1-0.20230918174248-17cf27c06d26
+	go.aporeto.io/addedeffect v1.82.0
 	go.aporeto.io/tg v1.50.2-0.20240726190142-d7d9b061a4ea
 )
 
