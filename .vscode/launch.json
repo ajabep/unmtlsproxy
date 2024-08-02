@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Open the TCP port 24658 to client.badssl.com",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": ["--backend", "client.badssl.com:443", "--cert", "${workspaceFolder}\\example\\badssl.com-client.crt.pem", "--cert-key", "${workspaceFolder}\\example\\badssl.com-client_NOENCRYPTION.key.pem", "--listen", "127.0.0.1:24658", "--log-level", "debug", "--mode", "tcp", "--unsecure-key-log-path", "${workspaceFolder}\\example\\keylog",]
+        },
+        {
+            "name": "Open the HTTP port 24658 to client.badssl.com",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": ["--backend", "https://client.badssl.com", "--cert", "${workspaceFolder}\\example\\badssl.com-client.crt.pem", "--cert-key", "${workspaceFolder}\\example\\badssl.com-client_NOENCRYPTION.key.pem", "--listen", "127.0.0.1:24658", "--log-level", "debug", "--mode", "http", "--unsecure-key-log-path", "${workspaceFolder}\\example\\keylog",]
+        }
+    ]
+}

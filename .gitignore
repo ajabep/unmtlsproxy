@@ -1,8 +1,5 @@
-.DS_Store
-mtlsproxy
-docker/app
-docker/fips
-debug
 vendor
-glide.lock
 .godebug.json
+unmtlsproxy_linux_386
+unmtlsproxy_linux_amd64
+unmtlsproxy_win_amd64.exe
