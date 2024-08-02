@@ -50,3 +50,5 @@ Multiple ways are possibles:
 ## Known issues
 
 * If you use an encrypted private key, the underlying lib is not able to decrypt it. The original software had the same issue. Have to fix it. Will do a day, probably.
+* May return `local error: tls: no renegotiation`.
+* If an "exotic" port is given together with a scheme, may return `Cannot guess the Scheme for port XXXX`.
