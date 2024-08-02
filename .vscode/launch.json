@@ -27,6 +27,14 @@
             "mode": "auto",
             "program": "${workspaceFolder}",
             "args": ["--backend", "https://webhost-lin.demo.plesk.com:8443", "--cert", "${workspaceFolder}\\example\\badssl.com-client.crt.pem", "--cert-key", "${workspaceFolder}\\example\\badssl.com-client_NOENCRYPTION.key.pem", "--listen", "127.0.0.1:24658", "--log-level", "debug", "--mode", "http", "--unsecure-key-log-path", "${workspaceFolder}\\example\\keylog"]
+        },
+        {
+            "name": "open encrypted private key",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": ["--backend", "client.badssl.com:443", "--cert", "${workspaceFolder}\\example\\badssl.com-client.crt.pem", "--cert-key", "${workspaceFolder}\\example\\badssl.com-client.key.pem", "--cert-key-pass", "badssl.com", "--listen", "127.0.0.1:24658", "--log-level", "debug", "--mode", "tcp", "--unsecure-key-log-path", "${workspaceFolder}\\example\\keylog"]
         }
     ]
 }
