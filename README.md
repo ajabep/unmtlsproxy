@@ -51,4 +51,11 @@ Multiple ways are possibles:
 
 * If you use an encrypted private key, the underlying lib is not able to decrypt it. The original software had the same issue. Have to fix it. Will do a day, probably.
 * May return `local error: tls: no renegotiation`.
-* May return `net/http: HTTP/1.x transport connection broken: malformed HTTP status code "response"`
+
+### The answer my client receive is `net/http: HTTP/1.x transport connection broken: malformed HTTP status code "response"`
+
+The server may support only HTTP/0.9, or something like that. Try to use the TCP mode.
+
+Have to fix that...
+
+Details of the fix: The support of HTTP/0.9 is dropped in Golang, so, have to make our own proxy, a bit like "https://kmcd.dev/posts/http0.9-from-scratch/"
