@@ -45,11 +45,14 @@ func main() {
 		// Server
 		RootCAs:            cfg.ServerCAPool,
 		InsecureSkipVerify: !cfg.ServerCAVerify,
-		KeyLogWriter:       w,
 
 		// Client
 		Certificates:       cfg.ClientCertificates,
 		ClientSessionCache: cliSessionCache,
+
+		// Exchange
+		KeyLogWriter:  w,
+		Renegotiation: tls.RenegotiateFreelyAsClient,
 
 		/// OLD
 		ClientAuth:               tls.RequireAndVerifyClientCert,

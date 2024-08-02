@@ -50,7 +50,6 @@ Multiple ways are possibles:
 ## Known issues
 
 * If you use an encrypted private key, the underlying lib is not able to decrypt it. The original software had the same issue. Have to fix it. Will do a day, probably.
-* May return `local error: tls: no renegotiation`.
 
 ### The answer my client receive is `net/http: HTTP/1.x transport connection broken: malformed HTTP status code "response"`
 
