@@ -34,7 +34,9 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config) func(w http.ResponseWrit
 
 	switch u.Port() {
 	default:
-		log.Fatalf("Cannot guess the Scheme for port %s", u.Port())
+		if u.Scheme == "" {
+			log.Fatalf("Cannot guess the Scheme for port %s", u.Port())
+		}
 	case "80":
 		u.Scheme = "http"
 	case "443":
