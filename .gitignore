@@ -3,3 +3,7 @@ vendor
 unmtlsproxy_linux_386
 unmtlsproxy_linux_amd64
 unmtlsproxy_win_amd64.exe
+unmtlsproxy_win_386.exe
+unmtlsproxy
+unmtlsproxy.exe
+local_build.ps1
