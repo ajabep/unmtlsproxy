@@ -86,7 +86,7 @@ signs:
       - "${artifact}"
       - "--yes" # needed on cosign 2.0.0+
     artifacts: source
-  - id: binary
+  - id: archive
     cmd: cosign
     certificate: "${artifact}.pem"
     args:
@@ -95,7 +95,7 @@ signs:
       - "--output-signature=${signature}"
       - "dist/${artifact}"
       - "--yes" # needed on cosign 2.0.0+
-    artifacts: binary
+    artifacts: archive
     output: true
 
 # Hahaha, it's only in gorelease 2.2
