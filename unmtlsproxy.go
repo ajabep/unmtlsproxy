@@ -24,12 +24,14 @@ import (
 )
 
 func main() {
-
 	cfg := configuration.NewConfiguration()
 
 	time.Local = time.UTC
 
-	cliSessionCache := tls.NewLRUClientSessionCache(10)
+	var cliSessionCache tls.ClientSessionCache = nil
+	if !cfg.DisableSocketReusing {
+		cliSessionCache = tls.NewLRUClientSessionCache(10)
+	}
 
 	var w io.Writer = nil
 
@@ -47,8 +49,9 @@ func main() {
 		InsecureSkipVerify: !cfg.ServerCAVerify,
 
 		// Client
-		Certificates:       cfg.ClientCertificates,
-		ClientSessionCache: cliSessionCache,
+		Certificates:           cfg.ClientCertificates,
+		ClientSessionCache:     cliSessionCache,
+		SessionTicketsDisabled: cliSessionCache != nil,
 
 		// Exchange
 		KeyLogWriter:  w,

@@ -24,16 +24,17 @@ import (
 
 // Configuration hold the service configuration.
 type Configuration struct {
-	Backend                  string `mapstructure:"backend"                  desc:"destination host"                                                                                       required:"true"`
-	ServerCAPoolPath         string `mapstructure:"server-ca"                desc:"Path the CAs used to verify server certificate. If not set, does not verify the server certificate."    default:""`
-	ListenAddress            string `mapstructure:"listen"                   desc:"Listening address"                                                                                      default:":443"`
-	ClientCertificateKeyPass string `mapstructure:"cert-key-pass"            desc:"Password for the client certificate key"                                                                `
-	ClientCertificateKeyPath string `mapstructure:"cert-key"                 desc:"Path to the client certificate key"                                                                     required:"true"`
-	ClientCertificatePath    string `mapstructure:"cert"                     desc:"Path to the client certificate"                                                                         required:"true"`
-	Mode                     string `mapstructure:"mode"                     desc:"Proxy mode"                                                                                             default:"tcp" allowed:"tcp,http"`
-	LogFormat                string `mapstructure:"log-format"               desc:"Log format"                                                                                             default:"console"`
-	LogLevel                 string `mapstructure:"log-level"                desc:"Log level"                                                                                              default:"info"`
-	UnsecureKeyLogPath       string `mapstructure:"unsecure-key-log-path"    desc:"[UNSECURE] Path of the file where session keys are dumped. Useful for debugging"                        default:""`
+	Backend                  string `mapstructure:"backend"                  desc:"destination host"                                                                                                                 required:"true"`
+	ServerCAPoolPath         string `mapstructure:"server-ca"                desc:"Path the CAs used to verify server certificate. If not set, does not verify the server certificate."                              default:""`
+	ListenAddress            string `mapstructure:"listen"                   desc:"Listening address"                                                                                                                default:":443"`
+	ClientCertificateKeyPass string `mapstructure:"cert-key-pass"            desc:"Password for the client certificate key"                                                                                          `
+	ClientCertificateKeyPath string `mapstructure:"cert-key"                 desc:"Path to the client certificate key"                                                                                               required:"true"`
+	ClientCertificatePath    string `mapstructure:"cert"                     desc:"Path to the client certificate"                                                                                                   required:"true"`
+	Mode                     string `mapstructure:"mode"                     desc:"Proxy mode"                                                                                                                       default:"tcp" allowed:"tcp,http"`
+	LogFormat                string `mapstructure:"log-format"               desc:"Log format"                                                                                                                       default:"console"`
+	LogLevel                 string `mapstructure:"log-level"                desc:"Log level"                                                                                                                        default:"info"`
+	UnsecureKeyLogPath       string `mapstructure:"unsecure-key-log-path"    desc:"[UNSECURE] Path of the file where session keys are dumped. Useful for debugging"                                                  default:""`
+	DisableSocketReusing     bool   `mapstructure:"disable-socket-reusing"   desc:"Disable the TLS socket reusing. Useful for debugging the HTTP mode. Not valid with the TCP mode (1 TCP socket = 1 TLS socket)"    default:"false"`
 
 	ServerCAPool       *x509.CertPool
 	ClientCertificates []tls.Certificate
@@ -53,6 +54,13 @@ func NewConfiguration() *Configuration {
 
 	c := &Configuration{}
 	lombric.Initialize(c)
+
+	if c.Mode == "tcp" {
+		if c.DisableSocketReusing {
+			panic("Option 'disable-socket-reusing' is forbidden in TCP mode. Socket reusing cannot being enabled, option is useless")
+		}
+		c.DisableSocketReusing = true
+	}
 
 	c.ServerCAVerify = c.ServerCAPoolPath != ""
 	if c.ServerCAVerify {

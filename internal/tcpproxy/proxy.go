@@ -29,7 +29,6 @@ type proxy struct {
 }
 
 func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
-
 	return &proxy{
 		from:      from,
 		to:        to,
