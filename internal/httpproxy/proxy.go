@@ -25,7 +25,7 @@ import (
 	"github.com/ajabep/unmtlsproxy/internal/configuration"
 )
 
-func makeHandleHTTP(dest string, tlsConfig *tls.Config) func(w http.ResponseWriter, req *http.Request) {
+func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(w http.ResponseWriter, req *http.Request) {
 
 	u, err := url.Parse(dest)
 	if err != nil {
@@ -59,6 +59,14 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config) func(w http.ResponseWrit
 
 	hostAttr := u.Hostname() + ":" + u.Port()
 
+	maxIdleConns := 1
+	idleConnTimeout := 1 * time.Microsecond
+	disableKeepAlives := !reuseSockets
+	if reuseSockets {
+		maxIdleConns = 100
+		idleConnTimeout = 90 * time.Second
+	}
+
 	// It establishes network connections as needed
 	// and caches them for reuse by subsequent calls. It uses HTTP proxies
 	// as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
@@ -70,13 +78,19 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config) func(w http.ResponseWrit
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
 		TLSClientConfig:       tlsConfig,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          maxIdleConns,
+		IdleConnTimeout:       idleConnTimeout,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+		DisableKeepAlives:     disableKeepAlives,
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		if !reuseSockets {
+			if tr, ok := transport.(*http.Transport); ok {
+				tr.CloseIdleConnections()
+			}
+		}
 
 		req.URL.Host = rewriteHost
 		req.URL.Scheme = rewriteSchema
@@ -112,7 +126,7 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 
 	server := &http.Server{
 		Addr:    cfg.ListenAddress,
-		Handler: http.HandlerFunc(makeHandleHTTP(cfg.Backend, tlsConfig)),
+		Handler: http.HandlerFunc(makeHandleHTTP(cfg.Backend, tlsConfig, !cfg.DisableSocketReusing)),
 	}
 
 	go func() {
