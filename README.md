@@ -39,7 +39,7 @@ See in the `./example/` directory.
 Multiple ways are possibles:
 
 1. The classic environment variables works well!
-2. Using `proxychains` shoudl also work.
+2. Using `proxychains` should also work.
 
 ## Changes from github.com/PaloAltoNetworks/mtlsproxy
 
