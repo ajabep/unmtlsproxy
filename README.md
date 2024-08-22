@@ -3,7 +3,6 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ajabep/unmtlsproxy/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ajabep/unmtlsproxy)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ajabeporg_unmtlsproxy&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ajabeporg_unmtlsproxy)
 
-
 un-MTLS proxy is a simple proxy service to remove the mutual TLS authentication to some services. This is useful when a tool is not supporting mTLS.
 
 > ⚠️ **DO NOT RUN IT IN PRODUCTION** ⚠️
@@ -21,6 +20,15 @@ My use-case is during penetration testing when some tools are not supporting mTL
 1. What you are doing!
 2. Which interface you are binding!
 3. How may access this interface!
+
+Note: it has been based on github.com/PaloAltoNetworks/mtlsproxy, but, honestly, there are not a lot of commons, except:
+
+1. The architecture;
+2. The command line options;
+3. Some pieces of code;
+4. The dependencies.
+
+Thus, I deleted the "Fork" status on GitHub.
 
 ## How to install?
 
