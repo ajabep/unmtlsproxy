@@ -49,12 +49,8 @@ Multiple ways are possibles:
 
 ## Known issues
 
-* If you use an encrypted private key, the underlying lib is not able to decrypt it. The original software had the same issue. Have to fix it. Will do a day, probably.
+[Check all the known issues... in the issue section of the GitHub repo!](https://github.com/ajabep/unmtlsproxy/issues)
 
 ### The answer my client receive is `net/http: HTTP/1.x transport connection broken: malformed HTTP status code "response"`
 
-The server may support only HTTP/0.9, or something like that. Try to use the TCP mode.
-
-Have to fix that...
-
-Details of the fix: The support of HTTP/0.9 is dropped in Golang, so, have to make our own proxy, a bit like "https://kmcd.dev/posts/http0.9-from-scratch/"
+The server may support only HTTP/0.9, or is not an HTTP server. Try to use the TCP mode.
