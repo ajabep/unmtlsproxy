@@ -36,8 +36,8 @@ func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
 	}
 }
 
+// Start the proxy. Is blocking!
 func (p *proxy) start(ctx context.Context) error {
-	/// Start the proxy. Is blocking!
 
 	listener, err := net.Listen("tcp", p.from)
 	if err != nil {

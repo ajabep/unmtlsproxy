@@ -40,7 +40,7 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 	case "80":
 		u.Scheme = "http"
 	case "443":
-		u.Scheme = "http"
+		u.Scheme = "https"
 	case "":
 		switch u.Scheme {
 		default:
