@@ -16,7 +16,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/url"
 	"os"
+	"strconv"
 
 	"go.aporeto.io/addedeffect/lombric"
 	"go.aporeto.io/tg/tglib"
@@ -54,6 +56,20 @@ func NewConfiguration() *Configuration {
 
 	c := &Configuration{}
 	lombric.Initialize(c)
+
+	listenUrl, err := url.Parse("http://" + c.ListenAddress)
+	if err != nil {
+		panic(err)
+	}
+	if port := listenUrl.Port(); port == "" {
+		panic("Invalid Listen format. Use `hostname:port`.")
+	} else if portInt, err := strconv.Atoi(port); err != nil {
+		panic(err)
+	} else if portInt <= 0 {
+		panic("Invalid Listening Port. Too low.")
+	} else if portInt > 65535 {
+		panic("Invalid Listening Port. Too High. We use TCP.")
+	}
 
 	if c.Mode == "tcp" {
 		if c.DisableSocketReusing {
