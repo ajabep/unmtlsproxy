@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -359,6 +360,346 @@ func TestMainHttp(t *testing.T) {
 
 		addr = fmt.Sprintf("http://%s", addr)
 		resp, err := http.Get(addr)
+		if err != nil {
+			panic(err)
+		}
+
+		if resp.StatusCode != int(testcase.expected.status) {
+			t.Errorf("Wrong Status Code! Had=%d, Expected=%d", resp.StatusCode, testcase.expected.status)
+		}
+
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		body = bytes.TrimSpace(body)
+
+		testValue := []byte(strings.TrimSpace(testcase.expected.bodyValue))
+		var testFunc FuncBytesTesting
+
+		if testcase.expected.bodyConstraint == Is {
+			testFunc = bytes.Equal
+		} else {
+			testFunc = bytes.Contains
+		}
+
+		if !testFunc(body, testValue) {
+			t.Errorf("The body does not pass via the condition! Condition = `%d`; Condition Value = `%s`; Body = `%s`", testcase.expected.bodyConstraint, testcase.expected.bodyValue, body)
+		}
+	}
+}
+
+func TestMainTcp(t *testing.T) {
+	mainSupervisor := tests.NewMainSupervisor(t, main)
+	defer mainSupervisor.Close()
+	exampleDir, err := configurationtest.GetExampleDir(0)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, testcase := range []TestCaseMainType{
+		{
+			name: "Minimal things",
+			config: map[string]string{
+				"backend":  "client.badssl.com:433",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				200,
+				"body { background: green; }",
+				Contains,
+			},
+		},
+		{
+			name: "Backend defined with its protocol",
+			config: map[string]string{
+				"backend":  "https://client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Contains,
+			},
+		},
+		{
+			name: "Backend defined with its port AND its protocol",
+			config: map[string]string{
+				"backend":  "https://client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Contains,
+			},
+		},
+		{
+			name: "Backend a wrong client cert",
+			config: map[string]string{
+				"backend":  "client-cert-missing.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				400,
+				"No required SSL certificate was sent",
+				Contains,
+			},
+		},
+		{
+			name: "Non existing backend",
+			config: map[string]string{
+				"backend":  "0.0.0.0:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				503,
+				"dial tcp 0.0.0.0:443: connectex: No connection could be made because the target machine actively refused it.",
+				Is,
+			},
+		},
+		{
+			name: "Wrong CA for validating the Server",
+			config: map[string]string{
+				"backend":   "client.badssl.com:443",
+				"cert":      filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key":  filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":      "tcp",
+				"server-ca": filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				503,
+				"tls: failed to verify certificate: x509: certificate signed by unknown authority",
+				Is,
+			},
+		},
+		{
+			name: "Wrong listen definition: Null port",
+			config: map[string]string{
+				"backend":  "client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+				"listen":   "0.0.0.0:0",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong listen definition: Negative port",
+			config: map[string]string{
+				"backend":  "client.badssl.com:tcp",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+				"listen":   "0.0.0.0:-1",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong listen definition: only the port",
+			config: map[string]string{
+				"backend":  "client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+				"listen":   "443",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong Client Certificate Path",
+			config: map[string]string{
+				"backend":  "client.badssl.com:443",
+				"cert":     fmt.Sprintf("%d", rand.Int()),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong Client Key Path",
+			config: map[string]string{
+				"backend":  "client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": fmt.Sprintf("%d", rand.Int()),
+				"mode":     "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Good Client Key Password",
+			config: map[string]string{
+				"backend":       "client.badssl.com:443",
+				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
+				"cert-key-pass": "badssl.com",
+				"mode":          "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong Client Key Password",
+			config: map[string]string{
+				"backend":       "client.badssl.com:443",
+				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
+				"cert-key-pass": fmt.Sprintf("%d", rand.Int()),
+				"mode":          "tcp",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+		{
+			name: "Wrong Mode",
+			config: map[string]string{
+				"backend":  "client.badssl.com:443",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     fmt.Sprintf("%d", rand.Int()),
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Is,
+			},
+		},
+	} {
+		t.Logf("Running Test `%s`", testcase.name)
+
+		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
+		if err != nil {
+			panic(err)
+		}
+
+		if testcase.expected.status != MainShouldFail {
+			if hasReturned {
+				t.Errorf("The main function has returned and should not returned.")
+				continue
+			}
+		} else {
+			if !hasReturned {
+				t.Errorf("The main function has not returned but should returned.")
+			}
+			continue
+		}
+
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			panic(err)
+		}
+
+		req, err := http.NewRequest("GET", "/", nil)
+		if err != nil {
+			panic(err)
+		}
+		hostname := "example.com"
+		if v, has := testcase.config["backend"]; has {
+			hostname = v
+		}
+		req.Header.Add("Host", hostname)
+		req.Header.Add("Connection", "close")
+		err = req.Write(conn)
+		if err != nil {
+			panic(err)
+		}
+
+		connReader := bufio.NewReader(conn)
+
+		resp, err := http.ReadResponse(connReader, req)
 		if err != nil {
 			panic(err)
 		}
