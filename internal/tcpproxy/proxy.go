@@ -88,12 +88,12 @@ func (p *proxy) copy(ctx context.Context, cancel context.CancelFunc, from, to ne
 	default:
 
 		for {
-			n, err = to.Read(buffer)
+			n, err = from.Read(buffer)
 			if err != nil {
 				return
 			}
 
-			_, err = from.Write(buffer[:n])
+			_, err = to.Write(buffer[:n])
 			if err != nil {
 				return
 			}
