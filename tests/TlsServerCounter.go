@@ -224,7 +224,7 @@ func (srv *TlsServerCounter) forgeHttpResponse(id uint) string {
 	response := fmt.Sprintf(
 		`HTTP/1.1 200 OK
 Content-Length: %d
-Content-Type: text/plain; utf-8
+Content-Type: text/plain; charset=utf-8
 
 %s`,
 		len(respBody),

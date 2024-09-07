@@ -16,6 +16,7 @@ import (
 	"crypto/tls"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 
@@ -38,12 +39,11 @@ func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
 
 // Start the proxy. Is blocking!
 func (p *proxy) start(ctx context.Context) error {
-
 	listener, err := net.Listen("tcp", p.from)
 	if err != nil {
 		return err
 	}
-	defer listener.Close() // nolint
+	defer listener.Close()
 
 	for {
 		select {
@@ -60,13 +60,14 @@ func (p *proxy) start(ctx context.Context) error {
 }
 
 func (p *proxy) handle(ctx context.Context, connection net.Conn) {
+	defer connection.Close()
 
-	defer connection.Close() // nolint
 	remote, err := tls.Dial("tcp", p.to, p.tlsConfig)
 	if err != nil {
+		connection.Write([]byte(err.Error()))
 		return
 	}
-	defer remote.Close() // nolint
+	defer remote.Close()
 
 	subctx, cancel := context.WithCancel(ctx)
 	go p.copy(subctx, cancel, remote, connection)
@@ -76,7 +77,6 @@ func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 }
 
 func (p *proxy) copy(ctx context.Context, cancel context.CancelFunc, from, to net.Conn) {
-
 	defer cancel()
 
 	var n int
@@ -86,7 +86,6 @@ func (p *proxy) copy(ctx context.Context, cancel context.CancelFunc, from, to ne
 	select {
 
 	default:
-
 		for {
 			n, err = from.Read(buffer)
 			if err != nil {
@@ -106,9 +105,24 @@ func (p *proxy) copy(ctx context.Context, cancel context.CancelFunc, from, to ne
 
 // Start starts the proxy
 func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	parsed, err := url.Parse("tcp://" + cfg.Backend)
+	if err != nil {
+		panic(err)
+	}
+	if parsed.Host != cfg.Backend {
+		panic("The backend definition seems to be invalid!")
+	}
+
+	parsed, err = url.Parse("tcp://" + cfg.ListenAddress)
+	if err != nil {
+		panic(err)
+	}
+	if parsed.Host != cfg.ListenAddress {
+		panic("The backend definition seems to be invalid!")
+	}
 
 	go func() {
 		if err := newProxy(cfg.ListenAddress, cfg.Backend, tlsConfig).start(ctx); err != nil {

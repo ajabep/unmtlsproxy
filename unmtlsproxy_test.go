@@ -3,14 +3,17 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration/configurationtest"
 	"github.com/ajabep/unmtlsproxy/tests"
@@ -19,7 +22,8 @@ import (
 type HttpStatus int
 
 const (
-	MainShouldFail HttpStatus = -1
+	MainShouldFail  HttpStatus = -1
+	NotHttpExpected HttpStatus = -2
 )
 
 type Constraint int
@@ -56,7 +60,8 @@ func TestMainHttp(t *testing.T) {
 	defer mainSupervisor.Close()
 	exampleDir, err := configurationtest.GetExampleDir(0)
 	if err != nil {
-		panic(err)
+		t.Errorf("Unexpected Error: %#v", err)
+		return
 	}
 
 	for _, testcase := range []TestCaseMainType{
@@ -166,8 +171,8 @@ func TestMainHttp(t *testing.T) {
 				bodyConstraint Constraint
 			}{
 				503,
-				"dial tcp 0.0.0.0:443: connectex: No connection could be made because the target machine actively refused it.",
-				Is,
+				"dial tcp 0.0.0.0:443: connect",
+				Contains,
 			},
 		},
 		{
@@ -343,7 +348,8 @@ func TestMainHttp(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			panic(err)
+			t.Errorf("Unexpected Error: %#v", err)
+			continue
 		}
 
 		if testcase.expected.status != MainShouldFail {
@@ -361,7 +367,8 @@ func TestMainHttp(t *testing.T) {
 		addr = fmt.Sprintf("http://%s", addr)
 		resp, err := http.Get(addr)
 		if err != nil {
-			panic(err)
+			t.Errorf("Unexpected Error: %#v", err)
+			continue
 		}
 
 		if resp.StatusCode != int(testcase.expected.status) {
@@ -371,7 +378,8 @@ func TestMainHttp(t *testing.T) {
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			panic(err)
+			t.Errorf("Unexpected Error: %#v", err)
+			continue
 		}
 		body = bytes.TrimSpace(body)
 
@@ -395,14 +403,15 @@ func TestMainTcp(t *testing.T) {
 	defer mainSupervisor.Close()
 	exampleDir, err := configurationtest.GetExampleDir(0)
 	if err != nil {
-		panic(err)
+		t.Errorf("Unexpected Error: %#v", err)
+		return
 	}
 
 	for _, testcase := range []TestCaseMainType{
 		{
 			name: "Minimal things",
 			config: map[string]string{
-				"backend":  "client.badssl.com:433",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "tcp",
@@ -420,7 +429,7 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Backend defined with its protocol",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com:443",
+				"backend":  "https://client.badssl.com",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "tcp",
@@ -484,9 +493,9 @@ func TestMainTcp(t *testing.T) {
 				bodyValue      string
 				bodyConstraint Constraint
 			}{
-				503,
-				"dial tcp 0.0.0.0:443: connectex: No connection could be made because the target machine actively refused it.",
-				Is,
+				NotHttpExpected,
+				"dial tcp 0.0.0.0:443: connect",
+				Contains,
 			},
 		},
 		{
@@ -503,7 +512,7 @@ func TestMainTcp(t *testing.T) {
 				bodyValue      string
 				bodyConstraint Constraint
 			}{
-				503,
+				NotHttpExpected,
 				"tls: failed to verify certificate: x509: certificate signed by unknown authority",
 				Is,
 			},
@@ -658,75 +667,117 @@ func TestMainTcp(t *testing.T) {
 			},
 		},
 	} {
-		t.Logf("Running Test `%s`", testcase.name)
+		testingFnc := func(testcase TestCaseMainType) {
+			t.Logf("Running Test `%s`", testcase.name)
 
-		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
-		if err != nil {
-			panic(err)
-		}
-
-		if testcase.expected.status != MainShouldFail {
-			if hasReturned {
-				t.Errorf("The main function has returned and should not returned.")
-				continue
+			addr, hasReturned, err := mainSupervisor.Run(testcase.config)
+			if err != nil {
+				t.Errorf("Unexpected Error: %#v", err)
+				return
 			}
-		} else {
-			if !hasReturned {
-				t.Errorf("The main function has not returned but should returned.")
+			defer mainSupervisor.Close()
+
+			if testcase.expected.status != MainShouldFail {
+				if hasReturned {
+					t.Errorf("The main function has returned and should not returned.")
+					return
+				}
+			} else {
+				if !hasReturned {
+					t.Errorf("The main function has not returned but should returned.")
+				}
+				return
 			}
-			continue
-		}
 
-		conn, err := net.Dial("tcp", addr)
-		if err != nil {
-			panic(err)
-		}
+			conn, err := net.Dial("tcp", addr)
+			if err != nil {
+				t.Errorf("Unexpected Error: %#v", err)
+				return
+			}
+			defer conn.Close()
 
-		req, err := http.NewRequest("GET", "/", nil)
-		if err != nil {
-			panic(err)
-		}
-		hostname := "example.com"
-		if v, has := testcase.config["backend"]; has {
-			hostname = v
-		}
-		req.Header.Add("Host", hostname)
-		req.Header.Add("Connection", "close")
-		err = req.Write(conn)
-		if err != nil {
-			panic(err)
-		}
+			connReader := bufio.NewReader(conn)
 
-		connReader := bufio.NewReader(conn)
+			conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+			body, err := io.ReadAll(connReader)
+			if err != nil {
+				if !errors.Is(err, os.ErrDeadlineExceeded) {
+					t.Errorf("Unexpected Error: %#v", err)
+					return
+				}
+			}
 
-		resp, err := http.ReadResponse(connReader, req)
-		if err != nil {
-			panic(err)
+			statusCode := int(NotHttpExpected)
+
+			if len(body) == 0 {
+				// No error have been raised when opening the socket
+
+				hostname := "example.com"
+				if v, has := testcase.config["backend"]; has {
+					hostname = v
+				}
+
+				req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/", hostname), nil)
+				if err != nil {
+					t.Errorf("Unexpected Error: %#v", err)
+				}
+				hostname, _ = strings.CutSuffix(hostname, ":443")
+				req.Header.Add("Host", hostname)
+				req.Header.Add("Connection", "close")
+				req.Header.Add("Content-Length", "0")
+				err = req.Write(conn)
+				if err != nil {
+					t.Errorf("Unexpected Error: %#v", err)
+					return
+				}
+
+				conn.SetReadDeadline(time.Time{})
+				body, err = io.ReadAll(connReader)
+				if err != nil {
+					if !errors.Is(err, os.ErrDeadlineExceeded) {
+						t.Errorf("Unexpected Error: %#v", err)
+						return
+					}
+				}
+
+				// Now, we have the conn content.
+
+				// Let's see if it's a HTTP Response!
+				bodyReader := bufio.NewReader(bytes.NewReader(body))
+
+				resp, err := http.ReadResponse(bodyReader, req)
+				if err == nil {
+					// It's an HTTP response, so, changing the variables we will compare
+					statusCode = resp.StatusCode
+					defer resp.Body.Close()
+					body, err = io.ReadAll(resp.Body)
+					if err != nil {
+						t.Errorf("Unexpected Error: %#v", err)
+						return
+					}
+				}
+			}
+
+			if statusCode != int(testcase.expected.status) {
+				t.Errorf("Wrong Status Code! Had=%d, Expected=%d", statusCode, testcase.expected.status)
+			}
+
+			body = bytes.TrimSpace(body)
+
+			testValue := []byte(strings.TrimSpace(testcase.expected.bodyValue))
+			var testFunc FuncBytesTesting
+
+			if testcase.expected.bodyConstraint == Is {
+				testFunc = bytes.Equal
+			} else {
+				testFunc = bytes.Contains
+			}
+
+			if !testFunc(body, testValue) {
+				t.Errorf("The body does not pass via the condition! Condition = `%d`; Condition Value = `%s`; Body = `%s`", testcase.expected.bodyConstraint, testcase.expected.bodyValue, body)
+			}
 		}
-
-		if resp.StatusCode != int(testcase.expected.status) {
-			t.Errorf("Wrong Status Code! Had=%d, Expected=%d", resp.StatusCode, testcase.expected.status)
-		}
-
-		defer resp.Body.Close()
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			panic(err)
-		}
-		body = bytes.TrimSpace(body)
-
-		testValue := []byte(strings.TrimSpace(testcase.expected.bodyValue))
-		var testFunc FuncBytesTesting
-
-		if testcase.expected.bodyConstraint == Is {
-			testFunc = bytes.Equal
-		} else {
-			testFunc = bytes.Contains
-		}
-
-		if !testFunc(body, testValue) {
-			t.Errorf("The body does not pass via the condition! Condition = `%d`; Condition Value = `%s`; Body = `%s`", testcase.expected.bodyConstraint, testcase.expected.bodyValue, body)
-		}
+		testingFnc(testcase)
 	}
 }
 
@@ -740,7 +791,8 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 
 	srv, err := tests.NewStartedTlsServerCounter(true)
 	if err != nil {
-		panic(err)
+		t.Errorf("Unexpected Error: %#v", err)
+		return
 	}
 
 	for _, testcase := range []TestCaseHttpDisableSocketReusingType{
@@ -782,7 +834,7 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			panic(err)
+			t.Errorf("Unexpected Error: %#v", err)
 		}
 		addr = fmt.Sprintf("http://%s", addr)
 
@@ -794,13 +846,15 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			resp, err := http.Get(addr)
 			if err != nil {
-				panic(err)
+				t.Errorf("Unexpected Error: %#v", err)
+				continue
 			}
 
 			defer resp.Body.Close()
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
-				panic(err)
+				t.Errorf("Unexpected Error: %#v", err)
+				continue
 			}
 
 			var msg string
@@ -825,7 +879,8 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 	srv, err := tests.NewStartedTlsServerCounter(false)
 	if err != nil {
-		panic(err)
+		t.Errorf("Unexpected Error: %#v", err)
+		return
 	}
 
 	for _, testcase := range []TestCaseTcpSocketReusingDisabledType{
@@ -867,7 +922,8 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			panic(err)
+			t.Errorf("Unexpected Error: %#v", err)
+			continue
 		}
 
 		if testcase.mainShouldFail {
@@ -884,7 +940,8 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			conn, err := net.Dial("tcp", addr)
 			if err != nil {
-				panic(err)
+				t.Errorf("Unexpected Error: %#v", err)
+				continue
 			}
 			defer conn.Close()
 			byteSent := make([]byte, 2)
@@ -893,7 +950,8 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 				_, err := conn.Read(byteSent)
 				if err != nil {
-					panic(err)
+					t.Errorf("Unexpected Error: %#v", err)
+					continue
 				}
 
 				var msg string
