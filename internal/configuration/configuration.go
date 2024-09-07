@@ -29,7 +29,6 @@ type Configuration struct {
 	Backend                  string `mapstructure:"backend"                  desc:"destination host"                                                                                                                 required:"true"`
 	ServerCAPoolPath         string `mapstructure:"server-ca"                desc:"Path the CAs used to verify server certificate. If not set, does not verify the server certificate."                              default:""`
 	ListenAddress            string `mapstructure:"listen"                   desc:"Listening address"                                                                                                                default:":443"`
-	ClientCertificateKeyPass string `mapstructure:"cert-key-pass"            desc:"Password for the client certificate key"                                                                                          `
 	ClientCertificateKeyPath string `mapstructure:"cert-key"                 desc:"Path to the client certificate key"                                                                                               required:"true"`
 	ClientCertificatePath    string `mapstructure:"cert"                     desc:"Path to the client certificate"                                                                                                   required:"true"`
 	Mode                     string `mapstructure:"mode"                     desc:"Proxy mode"                                                                                                                       default:"tcp" allowed:"tcp,http"`
@@ -88,7 +87,7 @@ func NewConfiguration() *Configuration {
 		c.ServerCAPool.AppendCertsFromPEM(data)
 	}
 
-	certs, key, err := tglib.ReadCertificatePEMs(c.ClientCertificatePath, c.ClientCertificateKeyPath, c.ClientCertificateKeyPass)
+	certs, key, err := tglib.ReadCertificatePEMs(c.ClientCertificatePath, c.ClientCertificateKeyPath, "")
 	if err != nil {
 		panic(err)
 	}

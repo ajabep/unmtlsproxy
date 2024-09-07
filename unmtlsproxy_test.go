@@ -288,45 +288,6 @@ func TestMainHttp(t *testing.T) {
 				Is,
 			},
 		},
-		// Issue #31
-		// {
-		// 	name: "Correct Client Key Password",
-		// 	config: map[string]string{
-		// 		"backend":       "https://client.badssl.com",
-		// 		"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-		// 		"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-		// 		"cert-key-pass": "badssl.com",
-		// 		"mode":          "http",
-		// 	},
-		// 	expected: struct {
-		// 		status         HttpStatus
-		// 		bodyValue      string
-		// 		bodyConstraint Constraint
-		// 	}{
-		// 		200,
-		// 		"body { background: green; }",
-		// 		Contains,
-		// 	},
-		// },
-		{
-			name: "Wrong Client Key Password",
-			config: map[string]string{
-				"backend":       "https://client.badssl.com",
-				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-				"cert-key-pass": fmt.Sprintf("%d", rand.Int()),
-				"mode":          "http",
-			},
-			expected: struct {
-				status         HttpStatus
-				bodyValue      string
-				bodyConstraint Constraint
-			}{
-				MainShouldFail,
-				"",
-				Is,
-			},
-		},
 		{
 			name: "Wrong Mode",
 			config: map[string]string{
@@ -601,45 +562,6 @@ func TestMainTcp(t *testing.T) {
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": fmt.Sprintf("%d", rand.Int()),
 				"mode":     "tcp",
-			},
-			expected: struct {
-				status         HttpStatus
-				bodyValue      string
-				bodyConstraint Constraint
-			}{
-				MainShouldFail,
-				"",
-				Is,
-			},
-		},
-		// Issue #31
-		// {
-		// 	name: "Correct Client Key Password",
-		// 	config: map[string]string{
-		// 		"backend":       "client.badssl.com:443",
-		// 		"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-		// 		"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-		// 		"cert-key-pass": "badssl.com",
-		// 		"mode":          "tcp",
-		// 	},
-		// 	expected: struct {
-		// 		status         HttpStatus
-		// 		bodyValue      string
-		// 		bodyConstraint Constraint
-		// 	}{
-		// 		200,
-		// 		"body { background: green; }",
-		// 		Contains,
-		// 	},
-		// },
-		{
-			name: "Wrong Client Key Password",
-			config: map[string]string{
-				"backend":       "client.badssl.com:443",
-				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-				"cert-key-pass": fmt.Sprintf("%d", rand.Int()),
-				"mode":          "tcp",
 			},
 			expected: struct {
 				status         HttpStatus

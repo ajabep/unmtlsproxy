@@ -62,3 +62,11 @@ Multiple ways are possibles:
 ### The answer my client receive is `net/http: HTTP/1.x transport connection broken: malformed HTTP status code "response"`
 
 The server may support only HTTP/0.9, or is not an HTTP server. Try to use the TCP mode.
+
+### How to use an encrypted private key?
+
+The private key encryption (RFC 1423) is insecure by design. Since it does not authenticate the ciphertext, it is vulnerable to padding oracle attacks that can let an attacker recover the plaintext.
+
+Also, if the private key is accessible by someone else on your disk, a simple `ps auxe` would help them to extract the password, not enabling any better security than a good MAC.
+
+In other words, it just gives you the feeling of being secured. Nothing more.
