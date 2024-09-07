@@ -24,6 +24,7 @@ type HttpStatus int
 const (
 	MainShouldFail  HttpStatus = -1
 	NotHttpExpected HttpStatus = -2
+	NoRequestSent   HttpStatus = -3
 )
 
 type Constraint int
@@ -287,25 +288,26 @@ func TestMainHttp(t *testing.T) {
 				Is,
 			},
 		},
-		{
-			name: "Good Client Key Password",
-			config: map[string]string{
-				"backend":       "https://client.badssl.com",
-				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-				"cert-key-pass": "badssl.com",
-				"mode":          "http",
-			},
-			expected: struct {
-				status         HttpStatus
-				bodyValue      string
-				bodyConstraint Constraint
-			}{
-				MainShouldFail,
-				"",
-				Is,
-			},
-		},
+		// Issue #31
+		// {
+		// 	name: "Correct Client Key Password",
+		// 	config: map[string]string{
+		// 		"backend":       "https://client.badssl.com",
+		// 		"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+		// 		"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
+		// 		"cert-key-pass": "badssl.com",
+		// 		"mode":          "http",
+		// 	},
+		// 	expected: struct {
+		// 		status         HttpStatus
+		// 		bodyValue      string
+		// 		bodyConstraint Constraint
+		// 	}{
+		// 		200,
+		// 		"body { background: green; }",
+		// 		Contains,
+		// 	},
+		// },
 		{
 			name: "Wrong Client Key Password",
 			config: map[string]string{
@@ -493,7 +495,7 @@ func TestMainTcp(t *testing.T) {
 				bodyValue      string
 				bodyConstraint Constraint
 			}{
-				NotHttpExpected,
+				NoRequestSent,
 				"dial tcp 0.0.0.0:443: connect",
 				Contains,
 			},
@@ -512,7 +514,7 @@ func TestMainTcp(t *testing.T) {
 				bodyValue      string
 				bodyConstraint Constraint
 			}{
-				NotHttpExpected,
+				NoRequestSent,
 				"tls: failed to verify certificate: x509: certificate signed by unknown authority",
 				Is,
 			},
@@ -610,25 +612,26 @@ func TestMainTcp(t *testing.T) {
 				Is,
 			},
 		},
-		{
-			name: "Good Client Key Password",
-			config: map[string]string{
-				"backend":       "client.badssl.com:443",
-				"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
-				"cert-key-pass": "badssl.com",
-				"mode":          "tcp",
-			},
-			expected: struct {
-				status         HttpStatus
-				bodyValue      string
-				bodyConstraint Constraint
-			}{
-				MainShouldFail,
-				"",
-				Is,
-			},
-		},
+		// Issue #31
+		// {
+		// 	name: "Correct Client Key Password",
+		// 	config: map[string]string{
+		// 		"backend":       "client.badssl.com:443",
+		// 		"cert":          filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+		// 		"cert-key":      filepath.Join(exampleDir, "badssl.com-client.key.pem"),
+		// 		"cert-key-pass": "badssl.com",
+		// 		"mode":          "tcp",
+		// 	},
+		// 	expected: struct {
+		// 		status         HttpStatus
+		// 		bodyValue      string
+		// 		bodyConstraint Constraint
+		// 	}{
+		// 		200,
+		// 		"body { background: green; }",
+		// 		Contains,
+		// 	},
+		// },
 		{
 			name: "Wrong Client Key Password",
 			config: map[string]string{
@@ -707,7 +710,7 @@ func TestMainTcp(t *testing.T) {
 				}
 			}
 
-			statusCode := int(NotHttpExpected)
+			statusCode := int(NoRequestSent)
 
 			if len(body) == 0 {
 				// No error have been raised when opening the socket
@@ -739,6 +742,7 @@ func TestMainTcp(t *testing.T) {
 						return
 					}
 				}
+				statusCode = int(NotHttpExpected)
 
 				// Now, we have the conn content.
 
@@ -781,9 +785,9 @@ func TestMainTcp(t *testing.T) {
 	}
 }
 
-//func TestUnsecureKeyLogPath(t *testing.T) {
-// TODO
-//}
+// TODO Find a way to test that!
+// func TestUnsecureKeyLogPath(t *testing.T) {
+// }
 
 func TestHttpDisableSocketReusing(t *testing.T) {
 	mainSupervisor := tests.NewMainSupervisor(t, main)
@@ -797,7 +801,7 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 
 	for _, testcase := range []TestCaseHttpDisableSocketReusingType{
 		{
-			name: "No options",
+			name: "No option",
 			config: map[string]string{
 				"backend":  srv.Backend(),
 				"cert":     srv.CertClientFilePath,
@@ -885,7 +889,7 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 	for _, testcase := range []TestCaseTcpSocketReusingDisabledType{
 		{
-			name: "No options",
+			name: "No option",
 			config: map[string]string{
 				"backend":  srv.Backend(),
 				"cert":     srv.CertClientFilePath,
@@ -965,5 +969,4 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 	}
 }
 
-// Not allow HTTP (no SSL) backend in the HTTPS mode! It's completely silly!
-// TODO Same for tcp!
+// TODO Not allow HTTP (no SSL) backend in the HTTPS mode! It's completely silly!
