@@ -35,8 +35,8 @@ func main() {
 
 	var w io.Writer = nil
 
-	if cfg.UnsecureKeyLogPath != "" {
-		if w2, err := os.OpenFile(cfg.UnsecureKeyLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm); err != nil {
+	if cfg.UnsafeKeyLogPath != "" {
+		if w2, err := os.OpenFile(cfg.UnsafeKeyLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm); err != nil {
 			log.Fatalln("Unable to open the key log path:", err)
 		} else {
 			w = w2 // If setting up w and err with a `:=`, it will create a temp var

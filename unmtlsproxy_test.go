@@ -708,7 +708,7 @@ func TestMainTcp(t *testing.T) {
 }
 
 // TODO Find a way to test that!
-// func TestUnsecureKeyLogPath(t *testing.T) {
+// func TestUnsafeKeyLogPath(t *testing.T) {
 // }
 
 func TestHttpDisableSocketReusing(t *testing.T) {
