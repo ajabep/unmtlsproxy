@@ -105,7 +105,7 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 			return
 		}
 
-		defer resp.Body.Close() // nolint: errcheck
+		defer resp.Body.Close()
 		for k, vv := range resp.Header {
 			for _, v := range vv {
 				w.Header().Add(k, v)
