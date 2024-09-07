@@ -47,7 +47,7 @@ func (c *Configuration) Prefix() string { return "unmtlsproxy" }
 
 // PrintVersion prints the current version.
 func (c *Configuration) PrintVersion() {
-	fmt.Printf("unmtlsproxy - %s\n", "1.0")
+	fmt.Printf("unmtlsproxy - %s\n", "1.1")
 }
 
 // NewConfiguration returns a new configuration.
