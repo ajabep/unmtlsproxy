@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration/configurationtest"
 )
@@ -61,6 +62,15 @@ func NewStartedTlsServerCounter(httpMode bool) (*TlsServerCounter, error) {
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		defer os.Remove(certServerFile.Name())
+		defer os.Remove(privServerFile.Name())
+		defer os.Remove(certClientFile.Name())
+		defer os.Remove(privClientFile.Name())
+		for {
+			time.Sleep(999 * time.Hour)
+		}
+	}()
 
 	certServer, privServer, err := GenerateCertificate(false, certServerFile, privServerFile)
 	if err != nil {
