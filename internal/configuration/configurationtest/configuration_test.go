@@ -18,7 +18,10 @@ func TestNewConfigurationValidMinimalist(t *testing.T) {
 		"mode":     "http",
 	}
 
-	_ = LoadNewConfiguration(config)
+	_, err = LoadNewConfiguration(config)
+	if err != nil {
+		t.Errorf("The Configuration loading failed while it was not supposed to fail: %s", err)
+	}
 }
 
 // func TestNewConfigurationValidClientCertificatePassword(t *testing.T) {

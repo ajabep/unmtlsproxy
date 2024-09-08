@@ -14,13 +14,13 @@ package tcpproxy
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net"
 	"net/url"
 	"os"
 	"os/signal"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration"
+	"github.com/ajabep/unmtlsproxy/internal/log"
 )
 
 type proxy struct {
@@ -64,6 +64,7 @@ func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 
 	remote, err := tls.Dial("tcp", p.to, p.tlsConfig)
 	if err != nil {
+		log.Error("Error connecting the backend", "err", err, "backend", p.to)
 		connection.Write([]byte(err.Error()))
 		return
 	}
@@ -110,27 +111,27 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 
 	parsed, err := url.Parse("tcp://" + cfg.Backend)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error when parsing the backend address", "err", err, "backend", cfg.Backend)
 	}
 	if parsed.Host != cfg.Backend {
-		panic("The backend definition seems to be invalid!")
+		log.Fatal("The backend definition seems to be invalid", "err", err, "backend", cfg.Backend)
 	}
 
 	parsed, err = url.Parse("tcp://" + cfg.ListenAddress)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error when parsing the listen address definition", "err", err, "listen", cfg.ListenAddress)
 	}
 	if parsed.Host != cfg.ListenAddress {
-		panic("The backend definition seems to be invalid!")
+		log.Fatal("The listen address definition seems to be invalid", "err", err, "listen", cfg.ListenAddress)
 	}
 
 	go func() {
 		if err := newProxy(cfg.ListenAddress, cfg.Backend, tlsConfig).start(ctx); err != nil {
-			log.Fatalln("Unable to start proxy:", err)
+			log.Fatal("Unable to start proxy", "err", err, "listen", cfg.ListenAddress, "backend", cfg.Backend)
 		}
 	}()
 
-	log.Printf("MTLSProxy is ready. mode:%s listen:%s backend:%s ", cfg.Mode, cfg.ListenAddress, cfg.Backend)
+	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ListenAddress, "backend", cfg.Backend)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

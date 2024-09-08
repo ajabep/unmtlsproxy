@@ -14,7 +14,6 @@ package httpproxy
 import (
 	"crypto/tls"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,19 +22,20 @@ import (
 	"time"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration"
+	"github.com/ajabep/unmtlsproxy/internal/log"
 )
 
 func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(w http.ResponseWriter, req *http.Request) {
 
 	u, err := url.Parse(dest)
 	if err != nil {
-		log.Fatalf("Cannot parse the backend URI: %s", err)
+		log.Fatal("Cannot parse the backend URI", "err", err)
 	}
 
 	switch u.Port() {
 	default:
 		if u.Scheme == "" {
-			log.Fatalf("Cannot guess the Scheme for port %s", u.Port())
+			log.Fatal("Cannot guess the Scheme for port", "port", u.Port())
 		}
 	case "80":
 		u.Scheme = "http"
@@ -44,13 +44,13 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 	case "":
 		switch u.Scheme {
 		default:
-			log.Fatalf("Cannot guess the default port for scheme %s", u.Scheme)
+			log.Fatal("Cannot guess the default port for scheme", "scheme", u.Scheme, "port", u.Port())
 		case "http":
 			u.Host += ":80"
 		case "https":
 			u.Host += ":443"
 		case "":
-			log.Fatal("Cannot guess the Scheme when no port is given")
+			log.Fatal("Cannot guess the Scheme when no port is given", "scheme", u.Scheme, "port", u.Port())
 		}
 	}
 
@@ -94,13 +94,11 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 
 		req.URL.Host = rewriteHost
 		req.URL.Scheme = rewriteSchema
-
-		// Update Host header
-		//req.Header.Set("Host", hostHeader)
 		req.Host = hostAttr
 
 		resp, err := transport.RoundTrip(req)
 		if err != nil {
+			log.Error("Cannot RoundTrip a request", "err", err, "req", req)
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -115,6 +113,7 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 		w.WriteHeader(resp.StatusCode)
 
 		if _, err = io.Copy(w, resp.Body); err != nil {
+			log.Error("Cannot send the response to the client of the proxy", "err", err, "resp", resp, "w", w)
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
@@ -131,11 +130,11 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			log.Fatalln("Unable to start proxy:", err)
+			log.Fatal("Unable to start proxy", "err", err)
 		}
 	}()
 
-	log.Printf("MTLSProxy is ready. mode:%s listen:%s backend:%s ", cfg.Mode, cfg.ListenAddress, cfg.Backend)
+	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ListenAddress, "backend", cfg.Backend)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -89,7 +89,7 @@ func SetupConfigurationEnv(args map[string]string) {
 	}
 }
 
-func LoadNewConfiguration(args map[string]string) *configuration.Configuration {
+func LoadNewConfiguration(args map[string]string) (*configuration.Configuration, error) {
 	SetupConfigurationEnv(args)
 	return configuration.NewConfiguration()
 }
