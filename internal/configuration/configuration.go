@@ -15,11 +15,14 @@ package configuration
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
 
+	"github.com/ajabep/unmtlsproxy/internal/log"
 	"go.aporeto.io/addedeffect/lombric"
 	"go.aporeto.io/tg/tglib"
 )
@@ -32,8 +35,7 @@ type Configuration struct {
 	ClientCertificateKeyPath string `mapstructure:"cert-key"               desc:"Path to the client certificate key"                                                                                            required:"true"`
 	ClientCertificatePath    string `mapstructure:"cert"                   desc:"Path to the client certificate"                                                                                                required:"true"`
 	Mode                     string `mapstructure:"mode"                   desc:"Proxy mode"                                                                                                                    default:"tcp" allowed:"tcp,http"`
-	LogFormat                string `mapstructure:"log-format"             desc:"Log format"                                                                                                                    default:"console"`
-	LogLevel                 string `mapstructure:"log-level"              desc:"Log level"                                                                                                                     default:"info"`
+	LogLevel                 string `mapstructure:"log-level"              desc:"Log level"                                                                                                                     default:"info" allowed:"debug,info"`
 	UnsafeKeyLogPath         string `mapstructure:"unsafe-key-log-path"    desc:"[UNSAFE] Path of the file where session keys are dumped. Useful for debugging"                                                 default:""`
 	DisableSocketReusing     bool   `mapstructure:"disable-socket-reusing" desc:"Disable the TLS socket reusing. Useful for debugging the HTTP mode. Not valid with the TCP mode (1 TCP socket = 1 TLS socket)" default:"false"`
 
@@ -46,33 +48,45 @@ type Configuration struct {
 func (c *Configuration) Prefix() string { return "unmtlsproxy" }
 
 // PrintVersion prints the current version.
+// TODO make the version number dynamic
 func (c *Configuration) PrintVersion() {
 	fmt.Printf("unmtlsproxy - %s\n", "1.1")
 }
 
-// NewConfiguration returns a new configuration.
-func NewConfiguration() *Configuration {
+var (
+	ErrInvalidListenFormat         = errors.New("invalid listen format. Use `hostname:port`")
+	ErrInvalidPortTooLow           = errors.New("invalid listening port: too low")
+	ErrInvalidPortTooHigh          = errors.New("invalid listening port: too high")
+	ErrForbiddenDisableSocketUsing = errors.New("option 'disable-socket-reusing' is forbidden in TCP mode. Socket reusing cannot being enabled, option is useless")
+)
 
+// NewConfiguration returns a new configuration.
+func NewConfiguration() (*Configuration, error) {
 	c := &Configuration{}
 	lombric.Initialize(c)
+	log.InitDefault(slog.LevelDebug)
+
+	if c.LogLevel == "info" {
+		log.SetLoggerLevel(slog.LevelInfo)
+	}
 
 	listenUrl, err := url.Parse("http://" + c.ListenAddress)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("cannot parse the listening address: %w", err)
 	}
 	if port := listenUrl.Port(); port == "" {
-		panic("Invalid Listen format. Use `hostname:port`.")
+		return nil, ErrInvalidListenFormat
 	} else if portInt, err := strconv.Atoi(port); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("invalid listening port format: %w", err)
 	} else if portInt <= 0 {
-		panic("Invalid Listening Port. Too low.")
+		return nil, ErrInvalidPortTooLow
 	} else if portInt > 65535 {
-		panic("Invalid Listening Port. Too High. We use TCP.")
+		return nil, ErrInvalidPortTooHigh
 	}
 
 	if c.Mode == "tcp" {
 		if c.DisableSocketReusing {
-			panic("Option 'disable-socket-reusing' is forbidden in TCP mode. Socket reusing cannot being enabled, option is useless")
+			return nil, ErrForbiddenDisableSocketUsing
 		}
 		c.DisableSocketReusing = true
 	}
@@ -81,7 +95,7 @@ func NewConfiguration() *Configuration {
 	if c.ServerCAVerify {
 		data, err := os.ReadFile(c.ServerCAPoolPath)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		c.ServerCAPool = x509.NewCertPool()
 		c.ServerCAPool.AppendCertsFromPEM(data)
@@ -89,14 +103,14 @@ func NewConfiguration() *Configuration {
 
 	certs, key, err := tglib.ReadCertificatePEMs(c.ClientCertificatePath, c.ClientCertificateKeyPath, "")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	tc, err := tglib.ToTLSCertificates(certs, key)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	c.ClientCertificates = append(c.ClientCertificates, tc)
 
-	return c
+	return c, nil
 }

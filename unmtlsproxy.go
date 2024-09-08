@@ -14,17 +14,20 @@ package main
 import (
 	"crypto/tls"
 	"io"
-	"log"
 	"os"
 	"time"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration"
 	"github.com/ajabep/unmtlsproxy/internal/httpproxy"
+	"github.com/ajabep/unmtlsproxy/internal/log"
 	"github.com/ajabep/unmtlsproxy/internal/tcpproxy"
 )
 
 func main() {
-	cfg := configuration.NewConfiguration()
+	cfg, err := configuration.NewConfiguration()
+	if err != nil {
+		log.Fatal("Failed to load configuration", "err", err)
+	}
 
 	time.Local = time.UTC
 
@@ -36,10 +39,9 @@ func main() {
 	var w io.Writer = nil
 
 	if cfg.UnsafeKeyLogPath != "" {
-		if w2, err := os.OpenFile(cfg.UnsafeKeyLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm); err != nil {
-			log.Fatalln("Unable to open the key log path:", err)
-		} else {
-			w = w2 // If setting up w and err with a `:=`, it will create a temp var
+		w, err = os.OpenFile(cfg.UnsafeKeyLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, os.ModePerm)
+		if err != nil {
+			log.Fatal("Unable to open the key log path", "err", err)
 		}
 	}
 
