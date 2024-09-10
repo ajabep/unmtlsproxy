@@ -64,12 +64,14 @@ var (
 func NewConfiguration() (*Configuration, error) {
 	c := &Configuration{}
 	lombric.Initialize(c)
-	log.InitDefault(slog.LevelDebug)
 
+	lvl := slog.LevelDebug
 	if c.LogLevel == "info" {
-		log.SetLoggerLevel(slog.LevelInfo)
+		lvl = slog.LevelInfo
 	}
+	log.InitDefault(lvl)
 
+	log.Debug("Parsing the listening address", "listeningAddr", c.ListenAddress)
 	listenUrl, err := url.Parse("http://" + c.ListenAddress)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse the listening address: %w", err)
@@ -84,6 +86,7 @@ func NewConfiguration() (*Configuration, error) {
 		return nil, ErrInvalidPortTooHigh
 	}
 
+	log.Debug("Parsing the disable socket reusing option", "mode", c.Mode, "disableSocketReusing", c.DisableSocketReusing)
 	if c.Mode == "tcp" {
 		if c.DisableSocketReusing {
 			return nil, ErrForbiddenDisableSocketUsing
@@ -91,6 +94,7 @@ func NewConfiguration() (*Configuration, error) {
 		c.DisableSocketReusing = true
 	}
 
+	log.Debug("Parsing the server CA", "serverCAPoolPath", c.ServerCAPoolPath, "serverCAVerify", c.ServerCAVerify)
 	c.ServerCAVerify = c.ServerCAPoolPath != ""
 	if c.ServerCAVerify {
 		data, err := os.ReadFile(c.ServerCAPoolPath)
@@ -100,7 +104,9 @@ func NewConfiguration() (*Configuration, error) {
 		c.ServerCAPool = x509.NewCertPool()
 		c.ServerCAPool.AppendCertsFromPEM(data)
 	}
+	log.Debug("Parsed the verify status", "serverCAVerify", c.ServerCAVerify)
 
+	log.Debug("Reading the client certificate and keys", "ClientCertificatePath", c.ClientCertificatePath, "ClientCertificateKeyPath", c.ClientCertificateKeyPath)
 	certs, key, err := tglib.ReadCertificatePEMs(c.ClientCertificatePath, c.ClientCertificateKeyPath, "")
 	if err != nil {
 		return nil, err

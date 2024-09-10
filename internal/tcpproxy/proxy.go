@@ -39,6 +39,7 @@ func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
 
 // Start the proxy. Is blocking!
 func (p *proxy) start(ctx context.Context) error {
+	log.Debug("Binding port", "listening addr", p.from)
 	listener, err := net.Listen("tcp", p.from)
 	if err != nil {
 		return err
@@ -50,10 +51,12 @@ func (p *proxy) start(ctx context.Context) error {
 
 		default:
 			if connection, err := listener.Accept(); err == nil {
+				log.Debug("Accepting a new connection", "listening addr", p.from)
 				go p.handle(ctx, connection)
 			}
 
 		case <-ctx.Done():
+			log.Debug("Closing the bound port", "listeningAddr", p.from)
 			return nil
 		}
 	}
@@ -62,6 +65,7 @@ func (p *proxy) start(ctx context.Context) error {
 func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 	defer connection.Close()
 
+	log.Debug("Opening a socket to the backend", "destinationAddr", p.to)
 	remote, err := tls.Dial("tcp", p.to, p.tlsConfig)
 	if err != nil {
 		log.Error("Error connecting the backend", "err", err, "backend", p.to)
@@ -75,6 +79,7 @@ func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 	go p.copy(subctx, cancel, connection, remote)
 
 	<-subctx.Done()
+	log.Debug("Closing the socket")
 }
 
 func (p *proxy) copy(ctx context.Context, cancel context.CancelFunc, from, to net.Conn) {
@@ -109,6 +114,7 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	log.Debug("Parsing the backend address", "backend", cfg.Backend)
 	parsed, err := url.Parse("tcp://" + cfg.Backend)
 	if err != nil {
 		log.Fatal("Error when parsing the backend address", "err", err, "backend", cfg.Backend)
@@ -117,6 +123,7 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 		log.Fatal("The backend definition seems to be invalid", "err", err, "backend", cfg.Backend)
 	}
 
+	log.Debug("Parsing the listen address", "listen", cfg.ListenAddress)
 	parsed, err = url.Parse("tcp://" + cfg.ListenAddress)
 	if err != nil {
 		log.Fatal("Error when parsing the listen address definition", "err", err, "listen", cfg.ListenAddress)
@@ -137,5 +144,5 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 	signal.Notify(c, os.Interrupt)
 
 	<-c
-	cancel()
+	log.Debug("Leaving!")
 }
