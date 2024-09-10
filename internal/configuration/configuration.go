@@ -61,7 +61,7 @@ func (c *Configuration) Prefix() string { return "unmtlsproxy" }
 // PrintVersion prints the current version.
 // TODO make the version number dynamic
 func (c *Configuration) PrintVersion() {
-	fmt.Printf("unmtlsproxy - %s\n", "1.1")
+	fmt.Printf("unmtlsproxy - %s\n", "1.2")
 }
 
 var (
