@@ -69,7 +69,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Minimal things",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -84,25 +84,24 @@ func TestMainHttp(t *testing.T) {
 				Contains,
 			},
 		},
-		// TODO: Open this notation in HTTP mode
-		//{
-		//	name: "Backend defined with its port",
-		//	config: map[string]string{
-		//		"backend":  "client.badssl.com:443",
-		//		"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-		//		"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
-		//		"mode":     "http",
-		//	},
-		//	expected: struct {
-		//		status         HttpStatus
-		//		bodyValue      string
-		//		bodyConstraint Constraint
-		//	}{
-		//		200,
-		//		"body { background: green; }",
-		//		Contains,
-		//	},
-		//},
+		{
+			name: "Backend defined with its protocol",
+			config: map[string]string{
+				"backend":  "https://client.badssl.com",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "http",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				MainShouldFail,
+				"",
+				Contains,
+			},
+		},
 		{
 			name: "Backend defined with its port AND its protocol",
 			config: map[string]string{
@@ -116,15 +115,15 @@ func TestMainHttp(t *testing.T) {
 				bodyValue      string
 				bodyConstraint Constraint
 			}{
-				200,
-				"body { background: green; }",
+				MainShouldFail,
+				"",
 				Contains,
 			},
 		},
 		{
 			name: "Backend a wrong client cert",
 			config: map[string]string{
-				"backend":  "https://client-cert-missing.badssl.com",
+				"backend":  "client-cert-missing.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -139,29 +138,28 @@ func TestMainHttp(t *testing.T) {
 				Contains,
 			},
 		},
-		// TODO: Open this notation in HTTP mode
-		// {
-		// 	name: "Non valid backend",
-		// 	config: map[string]string{
-		// 		"backend":  "0.0.0.0:1111",
-		// 		"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-		// 		"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
-		// 		"mode":     "http",
-		// 	},
-		// 	expected: struct {
-		// 		status         HttpStatus
-		// 		bodyValue      string
-		// 		bodyConstraint Constraint
-		// 	}{
-		// 		503,
-		// 		"dial tcp 0.0.0.0:443: connectex: No connection could be made because the target machine actively refused it.",
-		// 		Is,
-		// 	},
-		// },
+		{
+			name: "Non valid backend",
+			config: map[string]string{
+				"backend":  "0.0.0.0:1111",
+				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"mode":     "http",
+			},
+			expected: struct {
+				status         HttpStatus
+				bodyValue      string
+				bodyConstraint Constraint
+			}{
+				503,
+				"dial tcp 0.0.0.0:1111: connectex: No connection could be made because the target machine actively refused it.",
+				Is,
+			},
+		},
 		{
 			name: "Non existing backend",
 			config: map[string]string{
-				"backend":  "https://0.0.0.0",
+				"backend":  "0.0.0.0:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -179,7 +177,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong CA for validating the Server",
 			config: map[string]string{
-				"backend":   "https://client.badssl.com",
+				"backend":   "client.badssl.com:443",
 				"cert":      filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key":  filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":      "http",
@@ -198,7 +196,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Null port",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -217,7 +215,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Negative port",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -236,7 +234,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: only the port",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -255,7 +253,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Client Certificate Path",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     fmt.Sprintf("%d", rand.Int()),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     "http",
@@ -273,7 +271,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Client Key Path",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": fmt.Sprintf("%d", rand.Int()),
 				"mode":     "http",
@@ -291,7 +289,7 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Mode",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
+				"backend":  "client.badssl.com:443",
 				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
 				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
 				"mode":     fmt.Sprintf("%d", rand.Int()),
@@ -890,5 +888,3 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 		}
 	}
 }
-
-// TODO Not allow HTTP (no SSL) backend in the HTTPS mode! It's completely silly!

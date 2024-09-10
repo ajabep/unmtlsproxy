@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ajabep/unmtlsproxy/internal/configuration"
+	"github.com/spf13/pflag"
 )
 
 func GenerateCertificate(certificatePath string, keyPath string) error {
@@ -89,7 +90,12 @@ func SetupConfigurationEnv(args map[string]string) {
 	}
 }
 
+func ResetFlags() {
+	pflag.CommandLine = pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+}
+
 func LoadNewConfiguration(args map[string]string) (*configuration.Configuration, error) {
+	ResetFlags()
 	SetupConfigurationEnv(args)
 	return configuration.NewConfiguration()
 }
