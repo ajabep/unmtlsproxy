@@ -26,7 +26,7 @@ import (
 )
 
 func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(w http.ResponseWriter, req *http.Request) {
-
+	log.Debug("Parsing destination end", "destination", dest)
 	u, err := url.Parse(dest)
 	if err != nil {
 		log.Fatal("Cannot parse the backend URI", "err", err)
@@ -59,6 +59,7 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 
 	hostAttr := u.Hostname() + ":" + u.Port()
 
+	log.Debug("Building the TLS client configuration")
 	maxIdleConns := 1
 	idleConnTimeout := 1 * time.Microsecond
 	disableKeepAlives := !reuseSockets
@@ -86,16 +87,21 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		log.Debug("Received a request", "req", req)
+
 		if !reuseSockets {
 			if tr, ok := transport.(*http.Transport); ok {
+				log.Debug("Closing old idle connections")
 				tr.CloseIdleConnections()
 			}
 		}
 
+		log.Debug("Edit the request", "req", req)
 		req.URL.Host = rewriteHost
 		req.URL.Scheme = rewriteSchema
 		req.Host = hostAttr
 
+		log.Debug("Sending the edited request", "req", req)
 		resp, err := transport.RoundTrip(req)
 		if err != nil {
 			log.Error("Cannot RoundTrip a request", "err", err, "req", req)
@@ -104,14 +110,17 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 		}
 
 		defer resp.Body.Close()
+		log.Debug("Sending back the headers", "resp", resp)
 		for k, vv := range resp.Header {
 			for _, v := range vv {
 				w.Header().Add(k, v)
 			}
 		}
 
+		log.Debug("Sending HTTP code", "code", resp.StatusCode)
 		w.WriteHeader(resp.StatusCode)
 
+		log.Debug("Sending back the body")
 		if _, err = io.Copy(w, resp.Body); err != nil {
 			log.Error("Cannot send the response to the client of the proxy", "err", err, "resp", resp, "w", w)
 			http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -122,13 +131,13 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 
 // Start starts the proxy
 func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
-
 	server := &http.Server{
 		Addr:    cfg.ListenAddress,
 		Handler: http.HandlerFunc(makeHandleHTTP(cfg.Backend, tlsConfig, !cfg.DisableSocketReusing)),
 	}
 
 	go func() {
+		log.Debug("Listening the port", "listening", cfg.ListenAddress)
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatal("Unable to start proxy", "err", err)
 		}
@@ -140,4 +149,5 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 	signal.Notify(c, os.Interrupt)
 
 	<-c
+	log.Debug("Leaving!")
 }
