@@ -15,7 +15,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"net/url"
 	"os"
 	"os/signal"
 
@@ -24,12 +23,12 @@ import (
 )
 
 type proxy struct {
-	from      string
-	to        string
+	from      configuration.Addr
+	to        configuration.Addr
 	tlsConfig *tls.Config
 }
 
-func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
+func newProxy(from, to configuration.Addr, tlsConfig *tls.Config) *proxy {
 	return &proxy{
 		from:      from,
 		to:        to,
@@ -40,7 +39,7 @@ func newProxy(from, to string, tlsConfig *tls.Config) *proxy {
 // Start the proxy. Is blocking!
 func (p *proxy) start(ctx context.Context) error {
 	log.Debug("Binding port", "listening addr", p.from)
-	listener, err := net.Listen("tcp", p.from)
+	listener, err := net.Listen("tcp", p.from.String())
 	if err != nil {
 		return err
 	}
@@ -66,7 +65,7 @@ func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 	defer connection.Close()
 
 	log.Debug("Opening a socket to the backend", "destinationAddr", p.to)
-	remote, err := tls.Dial("tcp", p.to, p.tlsConfig)
+	remote, err := tls.Dial("tcp", p.to.String(), p.tlsConfig)
 	if err != nil {
 		log.Error("Error connecting the backend", "err", err, "backend", p.to)
 		connection.Write([]byte(err.Error()))
@@ -114,31 +113,13 @@ func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	log.Debug("Parsing the backend address", "backend", cfg.Backend)
-	parsed, err := url.Parse("tcp://" + cfg.Backend)
-	if err != nil {
-		log.Fatal("Error when parsing the backend address", "err", err, "backend", cfg.Backend)
-	}
-	if parsed.Host != cfg.Backend {
-		log.Fatal("The backend definition seems to be invalid", "err", err, "backend", cfg.Backend)
-	}
-
-	log.Debug("Parsing the listen address", "listen", cfg.ListenAddress)
-	parsed, err = url.Parse("tcp://" + cfg.ListenAddress)
-	if err != nil {
-		log.Fatal("Error when parsing the listen address definition", "err", err, "listen", cfg.ListenAddress)
-	}
-	if parsed.Host != cfg.ListenAddress {
-		log.Fatal("The listen address definition seems to be invalid", "err", err, "listen", cfg.ListenAddress)
-	}
-
 	go func() {
-		if err := newProxy(cfg.ListenAddress, cfg.Backend, tlsConfig).start(ctx); err != nil {
-			log.Fatal("Unable to start proxy", "err", err, "listen", cfg.ListenAddress, "backend", cfg.Backend)
+		if err := newProxy(cfg.ParsedListen, cfg.ParsedBackend, tlsConfig).start(ctx); err != nil {
+			log.Fatal("Unable to start proxy", "err", err, "listen", cfg.ParsedListen, "backend", cfg.ParsedBackend)
 		}
 	}()
 
-	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ListenAddress, "backend", cfg.Backend)
+	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ParsedListen, "backend", cfg.ParsedBackend)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

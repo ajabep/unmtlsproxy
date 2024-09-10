@@ -216,9 +216,6 @@ func (srv *TlsServerCounter) AddrString() string {
 }
 
 func (srv *TlsServerCounter) Backend() string {
-	if srv.httpMode {
-		return fmt.Sprintf("https://%s:%d", srv.addr, srv.port)
-	}
 	return fmt.Sprintf("%s:%d", srv.addr, srv.port)
 }
 

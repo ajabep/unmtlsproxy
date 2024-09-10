@@ -16,7 +16,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"time"
@@ -25,39 +24,18 @@ import (
 	"github.com/ajabep/unmtlsproxy/internal/log"
 )
 
-func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(w http.ResponseWriter, req *http.Request) {
+func makeHandleHTTP(dest configuration.Addr, tlsConfig *tls.Config, reuseSockets bool) func(w http.ResponseWriter, req *http.Request) {
 	log.Debug("Parsing destination end", "destination", dest)
-	u, err := url.Parse(dest)
-	if err != nil {
-		log.Fatal("Cannot parse the backend URI", "err", err)
+	if dest.Port == 80 {
+		log.Fatal("Cannot use an HTTP backend")
 	}
 
-	switch u.Port() {
-	default:
-		if u.Scheme == "" {
-			log.Fatal("Cannot guess the Scheme for port", "port", u.Port())
-		}
-	case "80":
-		u.Scheme = "http"
-	case "443":
-		u.Scheme = "https"
-	case "":
-		switch u.Scheme {
-		default:
-			log.Fatal("Cannot guess the default port for scheme", "scheme", u.Scheme, "port", u.Port())
-		case "http":
-			u.Host += ":80"
-		case "https":
-			u.Host += ":443"
-		case "":
-			log.Fatal("Cannot guess the Scheme when no port is given", "scheme", u.Scheme, "port", u.Port())
-		}
+	rewriteHost := dest.String()
+	rewriteSchema := "https"
+	hostAttr := dest.Hostname
+	if dest.Port != 443 {
+		hostAttr = dest.String()
 	}
-
-	rewriteHost := u.Host
-	rewriteSchema := u.Scheme
-
-	hostAttr := u.Hostname() + ":" + u.Port()
 
 	log.Debug("Building the TLS client configuration")
 	maxIdleConns := 1
@@ -132,18 +110,18 @@ func makeHandleHTTP(dest string, tlsConfig *tls.Config, reuseSockets bool) func(
 // Start starts the proxy
 func Start(cfg *configuration.Configuration, tlsConfig *tls.Config) {
 	server := &http.Server{
-		Addr:    cfg.ListenAddress,
-		Handler: http.HandlerFunc(makeHandleHTTP(cfg.Backend, tlsConfig, !cfg.DisableSocketReusing)),
+		Addr:    cfg.ParsedListen.String(),
+		Handler: http.HandlerFunc(makeHandleHTTP(cfg.ParsedBackend, tlsConfig, !cfg.DisableSocketReusing)),
 	}
 
 	go func() {
-		log.Debug("Listening the port", "listening", cfg.ListenAddress)
+		log.Debug("Listening the port", "listening", cfg.ParsedListen)
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatal("Unable to start proxy", "err", err)
 		}
 	}()
 
-	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ListenAddress, "backend", cfg.Backend)
+	log.Info("MTLSProxy is ready", "mode", cfg.Mode, "listen", cfg.ParsedListen, "backend", cfg.ParsedBackend)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -27,9 +27,18 @@ import (
 	"go.aporeto.io/tg/tglib"
 )
 
+type Addr struct {
+	Hostname string
+	Port     uint16
+}
+
+func (a Addr) String() string {
+	return fmt.Sprintf("%s:%d", a.Hostname, a.Port)
+}
+
 // Configuration hold the service configuration.
 type Configuration struct {
-	Backend                  string `mapstructure:"backend"                desc:"destination host"                                                                                                              required:"true"`
+	BackendAddress           string `mapstructure:"backend"                desc:"destination host. Format: host:port"                                                                                           required:"true"`
 	ServerCAPoolPath         string `mapstructure:"server-ca"              desc:"Path the CAs used to verify server certificate. If not set, does not verify the server certificate."                           default:""`
 	ListenAddress            string `mapstructure:"listen"                 desc:"Listening address"                                                                                                             default:":443"`
 	ClientCertificateKeyPath string `mapstructure:"cert-key"               desc:"Path to the client certificate key"                                                                                            required:"true"`
@@ -42,6 +51,8 @@ type Configuration struct {
 	ServerCAPool       *x509.CertPool
 	ClientCertificates []tls.Certificate
 	ServerCAVerify     bool
+	ParsedBackend      Addr
+	ParsedListen       Addr
 }
 
 // Prefix returns the configuration prefix.
@@ -81,9 +92,34 @@ func NewConfiguration() (*Configuration, error) {
 	} else if portInt, err := strconv.Atoi(port); err != nil {
 		return nil, fmt.Errorf("invalid listening port format: %w", err)
 	} else if portInt <= 0 {
-		return nil, ErrInvalidPortTooLow
+		return nil, fmt.Errorf("cannot parse the listening address: %w", ErrInvalidPortTooLow)
 	} else if portInt > 65535 {
-		return nil, ErrInvalidPortTooHigh
+		return nil, fmt.Errorf("cannot parse the listening address: %w", ErrInvalidPortTooHigh)
+	} else {
+		c.ParsedListen = Addr{
+			Hostname: listenUrl.Hostname(),
+			Port:     uint16(portInt),
+		}
+	}
+
+	log.Debug("Parsing the backend address", "backendAddr", c.ParsedBackend)
+	bckndUrl, err := url.Parse("tcp://" + c.BackendAddress)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse the backend address: %w", err)
+	}
+	if port := bckndUrl.Port(); port == "" {
+		return nil, ErrInvalidListenFormat
+	} else if portInt, err := strconv.Atoi(port); err != nil {
+		return nil, fmt.Errorf("invalid backend port format: %w", err)
+	} else if portInt <= 0 {
+		return nil, fmt.Errorf("cannot parse the backend address: %w", ErrInvalidPortTooLow)
+	} else if portInt > 65535 {
+		return nil, fmt.Errorf("cannot parse the backend address: %w", ErrInvalidPortTooHigh)
+	} else {
+		c.ParsedBackend = Addr{
+			Hostname: bckndUrl.Hostname(),
+			Port:     uint16(portInt),
+		}
 	}
 
 	log.Debug("Parsing the disable socket reusing option", "mode", c.Mode, "disableSocketReusing", c.DisableSocketReusing)
