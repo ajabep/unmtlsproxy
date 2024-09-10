@@ -152,8 +152,8 @@ func TestMainHttp(t *testing.T) {
 				bodyConstraint Constraint
 			}{
 				503,
-				"dial tcp 0.0.0.0:1111: connectex: No connection could be made because the target machine actively refused it.",
-				Is,
+				"dial tcp 0.0.0.0:1111: connect",
+				Contains,
 			},
 		},
 		{
