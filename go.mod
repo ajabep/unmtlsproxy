@@ -5,6 +5,7 @@ go 1.22
 toolchain go1.22.5
 
 require (
+	github.com/spf13/pflag v1.0.5
 	go.aporeto.io/addedeffect v1.82.0
 	go.aporeto.io/tg v1.50.2-0.20240726190142-d7d9b061a4ea
 )
@@ -20,7 +21,6 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.19.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
