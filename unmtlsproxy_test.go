@@ -56,12 +56,20 @@ type TestCaseTcpSocketReusingDisabledType struct {
 	mainShouldFail bool
 }
 
+const (
+	unexpectedError                  = "Unexpected Error: %#v"
+	testCertHostname                 = "client.badssl.com"
+	testCertSuccessPattern           = "body { background: green; }"
+	testCertClientCertPem            = "badssl.com-client.crt.pem"
+	testCertClientKeyNoEncryptionPem = "badssl.com-client_NOENCRYPTION.key.pem"
+)
+
 func TestMainHttp(t *testing.T) {
 	mainSupervisor := tests.NewMainSupervisor(t, main)
 	defer mainSupervisor.Close()
 	exampleDir, err := configurationtest.GetExampleDir(0)
 	if err != nil {
-		t.Errorf("Unexpected Error: %#v", err)
+		t.Errorf(unexpectedError, err)
 		return
 	}
 
@@ -69,9 +77,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Minimal things",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -80,16 +88,16 @@ func TestMainHttp(t *testing.T) {
 				bodyConstraint Constraint
 			}{
 				200,
-				"body { background: green; }",
+				testCertSuccessPattern,
 				Contains,
 			},
 		},
 		{
 			name: "Backend defined with its protocol",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("https://%s", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -105,9 +113,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Backend defined with its port AND its protocol",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("https://%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -124,8 +132,8 @@ func TestMainHttp(t *testing.T) {
 			name: "Backend a wrong client cert",
 			config: map[string]string{
 				"backend":  "client-cert-missing.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -142,8 +150,8 @@ func TestMainHttp(t *testing.T) {
 			name: "Non valid backend",
 			config: map[string]string{
 				"backend":  "0.0.0.0:1111",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -160,8 +168,8 @@ func TestMainHttp(t *testing.T) {
 			name: "Non existing backend",
 			config: map[string]string{
 				"backend":  "0.0.0.0:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -177,11 +185,11 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong CA for validating the Server",
 			config: map[string]string{
-				"backend":   "client.badssl.com:443",
-				"cert":      filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":  filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":   fmt.Sprintf("%s:443", testCertHostname),
+				"cert":      filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key":  filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":      "http",
-				"server-ca": filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"server-ca": filepath.Join(exampleDir, testCertClientCertPem),
 			},
 			expected: struct {
 				status         HttpStatus
@@ -196,9 +204,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Null port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 				"listen":   "0.0.0.0:0",
 			},
@@ -215,9 +223,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Negative port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 				"listen":   "0.0.0.0:-1",
 			},
@@ -234,9 +242,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong listen definition: only the port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 				"listen":   "443",
 			},
@@ -253,9 +261,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Client Certificate Path",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
 				"cert":     fmt.Sprintf("%d", rand.Int()),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "http",
 			},
 			expected: struct {
@@ -271,8 +279,8 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Client Key Path",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
 				"cert-key": fmt.Sprintf("%d", rand.Int()),
 				"mode":     "http",
 			},
@@ -289,9 +297,9 @@ func TestMainHttp(t *testing.T) {
 		{
 			name: "Wrong Mode",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     fmt.Sprintf("%d", rand.Int()),
 			},
 			expected: struct {
@@ -309,7 +317,7 @@ func TestMainHttp(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			t.Errorf("Unexpected Error: %#v", err)
+			t.Errorf(unexpectedError, err)
 			continue
 		}
 
@@ -328,7 +336,7 @@ func TestMainHttp(t *testing.T) {
 		addr = fmt.Sprintf("http://%s", addr)
 		resp, err := http.Get(addr)
 		if err != nil {
-			t.Errorf("Unexpected Error: %#v", err)
+			t.Errorf(unexpectedError, err)
 			continue
 		}
 
@@ -339,7 +347,7 @@ func TestMainHttp(t *testing.T) {
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			t.Errorf("Unexpected Error: %#v", err)
+			t.Errorf(unexpectedError, err)
 			continue
 		}
 		body = bytes.TrimSpace(body)
@@ -364,7 +372,7 @@ func TestMainTcp(t *testing.T) {
 	defer mainSupervisor.Close()
 	exampleDir, err := configurationtest.GetExampleDir(0)
 	if err != nil {
-		t.Errorf("Unexpected Error: %#v", err)
+		t.Errorf(unexpectedError, err)
 		return
 	}
 
@@ -372,9 +380,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Minimal things",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -383,16 +391,16 @@ func TestMainTcp(t *testing.T) {
 				bodyConstraint Constraint
 			}{
 				200,
-				"body { background: green; }",
+				testCertSuccessPattern,
 				Contains,
 			},
 		},
 		{
 			name: "Backend defined with its protocol",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("https://%s", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -408,9 +416,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Backend defined with its port AND its protocol",
 			config: map[string]string{
-				"backend":  "https://client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("https://%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -427,8 +435,8 @@ func TestMainTcp(t *testing.T) {
 			name: "Backend a wrong client cert",
 			config: map[string]string{
 				"backend":  "client-cert-missing.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -445,8 +453,8 @@ func TestMainTcp(t *testing.T) {
 			name: "Non existing backend",
 			config: map[string]string{
 				"backend":  "0.0.0.0:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -462,11 +470,11 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong CA for validating the Server",
 			config: map[string]string{
-				"backend":   "client.badssl.com:443",
-				"cert":      filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key":  filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":   fmt.Sprintf("%s:443", testCertHostname),
+				"cert":      filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key":  filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":      "tcp",
-				"server-ca": filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"server-ca": filepath.Join(exampleDir, testCertClientCertPem),
 			},
 			expected: struct {
 				status         HttpStatus
@@ -481,9 +489,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Null port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 				"listen":   "0.0.0.0:0",
 			},
@@ -500,9 +508,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong listen definition: Negative port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:tcp",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:tcp", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 				"listen":   "0.0.0.0:-1",
 			},
@@ -519,9 +527,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong listen definition: only the port",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 				"listen":   "443",
 			},
@@ -538,9 +546,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong Client Certificate Path",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
 				"cert":     fmt.Sprintf("%d", rand.Int()),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     "tcp",
 			},
 			expected: struct {
@@ -556,8 +564,8 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong Client Key Path",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
 				"cert-key": fmt.Sprintf("%d", rand.Int()),
 				"mode":     "tcp",
 			},
@@ -574,9 +582,9 @@ func TestMainTcp(t *testing.T) {
 		{
 			name: "Wrong Mode",
 			config: map[string]string{
-				"backend":  "client.badssl.com:443",
-				"cert":     filepath.Join(exampleDir, "badssl.com-client.crt.pem"),
-				"cert-key": filepath.Join(exampleDir, "badssl.com-client_NOENCRYPTION.key.pem"),
+				"backend":  fmt.Sprintf("%s:443", testCertHostname),
+				"cert":     filepath.Join(exampleDir, testCertClientCertPem),
+				"cert-key": filepath.Join(exampleDir, testCertClientKeyNoEncryptionPem),
 				"mode":     fmt.Sprintf("%d", rand.Int()),
 			},
 			expected: struct {
@@ -595,7 +603,7 @@ func TestMainTcp(t *testing.T) {
 
 			addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 			if err != nil {
-				t.Errorf("Unexpected Error: %#v", err)
+				t.Errorf(unexpectedError, err)
 				return
 			}
 			defer mainSupervisor.Close()
@@ -614,7 +622,7 @@ func TestMainTcp(t *testing.T) {
 
 			conn, err := net.Dial("tcp", addr)
 			if err != nil {
-				t.Errorf("Unexpected Error: %#v", err)
+				t.Errorf(unexpectedError, err)
 				return
 			}
 			defer conn.Close()
@@ -625,7 +633,7 @@ func TestMainTcp(t *testing.T) {
 			body, err := io.ReadAll(connReader)
 			if err != nil {
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
-					t.Errorf("Unexpected Error: %#v", err)
+					t.Errorf(unexpectedError, err)
 					return
 				}
 			}
@@ -642,7 +650,7 @@ func TestMainTcp(t *testing.T) {
 
 				req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/", hostname), nil)
 				if err != nil {
-					t.Errorf("Unexpected Error: %#v", err)
+					t.Errorf(unexpectedError, err)
 				}
 				hostname, _ = strings.CutSuffix(hostname, ":443")
 				req.Header.Add("Host", hostname)
@@ -650,7 +658,7 @@ func TestMainTcp(t *testing.T) {
 				req.Header.Add("Content-Length", "0")
 				err = req.Write(conn)
 				if err != nil {
-					t.Errorf("Unexpected Error: %#v", err)
+					t.Errorf(unexpectedError, err)
 					return
 				}
 
@@ -658,7 +666,7 @@ func TestMainTcp(t *testing.T) {
 				body, err = io.ReadAll(connReader)
 				if err != nil {
 					if !errors.Is(err, os.ErrDeadlineExceeded) {
-						t.Errorf("Unexpected Error: %#v", err)
+						t.Errorf(unexpectedError, err)
 						return
 					}
 				}
@@ -676,7 +684,7 @@ func TestMainTcp(t *testing.T) {
 					defer resp.Body.Close()
 					body, err = io.ReadAll(resp.Body)
 					if err != nil {
-						t.Errorf("Unexpected Error: %#v", err)
+						t.Errorf(unexpectedError, err)
 						return
 					}
 				}
@@ -715,7 +723,7 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 
 	srv, err := tests.NewStartedTlsServerCounter(true)
 	if err != nil {
-		t.Errorf("Unexpected Error: %#v", err)
+		t.Errorf(unexpectedError, err)
 		return
 	}
 
@@ -758,7 +766,7 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			t.Errorf("Unexpected Error: %#v", err)
+			t.Errorf(unexpectedError, err)
 		}
 		addr = fmt.Sprintf("http://%s", addr)
 
@@ -770,14 +778,14 @@ func TestHttpDisableSocketReusing(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			resp, err := http.Get(addr)
 			if err != nil {
-				t.Errorf("Unexpected Error: %#v", err)
+				t.Errorf(unexpectedError, err)
 				continue
 			}
 
 			defer resp.Body.Close()
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
-				t.Errorf("Unexpected Error: %#v", err)
+				t.Errorf(unexpectedError, err)
 				continue
 			}
 
@@ -803,7 +811,7 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 	srv, err := tests.NewStartedTlsServerCounter(false)
 	if err != nil {
-		t.Errorf("Unexpected Error: %#v", err)
+		t.Errorf(unexpectedError, err)
 		return
 	}
 
@@ -846,7 +854,7 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 		addr, hasReturned, err := mainSupervisor.Run(testcase.config)
 		if err != nil {
-			t.Errorf("Unexpected Error: %#v", err)
+			t.Errorf(unexpectedError, err)
 			continue
 		}
 
@@ -864,7 +872,7 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			conn, err := net.Dial("tcp", addr)
 			if err != nil {
-				t.Errorf("Unexpected Error: %#v", err)
+				t.Errorf(unexpectedError, err)
 				continue
 			}
 			defer conn.Close()
@@ -874,7 +882,7 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 
 				_, err := conn.Read(byteSent)
 				if err != nil {
-					t.Errorf("Unexpected Error: %#v", err)
+					t.Errorf(unexpectedError, err)
 					continue
 				}
 

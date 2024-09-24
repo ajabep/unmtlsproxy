@@ -69,6 +69,14 @@ var (
 	ErrInvalidPortTooLow           = errors.New("invalid listening port: too low")
 	ErrInvalidPortTooHigh          = errors.New("invalid listening port: too high")
 	ErrForbiddenDisableSocketUsing = errors.New("option 'disable-socket-reusing' is forbidden in TCP mode. Socket reusing cannot being enabled, option is useless")
+
+	fmtErrInvalidListeningPort     = "cannot parse the listening address: %w"
+	ErrInvalidListeningPortTooLow  = fmt.Errorf(fmtErrInvalidListeningPort, ErrInvalidPortTooLow)
+	ErrInvalidListeningPortTooHigh = fmt.Errorf(fmtErrInvalidListeningPort, ErrInvalidPortTooHigh)
+
+	fmtErrInvalidBackendPort     = "cannot parse the backend address: %w"
+	ErrInvalidBackendPortTooLow  = fmt.Errorf(fmtErrInvalidBackendPort, ErrInvalidPortTooLow)
+	ErrInvalidBackendPortTooHigh = fmt.Errorf(fmtErrInvalidBackendPort, ErrInvalidPortTooHigh)
 )
 
 // NewConfiguration returns a new configuration.
@@ -85,16 +93,16 @@ func NewConfiguration() (*Configuration, error) {
 	log.Debug("Parsing the listening address", "listeningAddr", c.ListenAddress)
 	listenUrl, err := url.Parse("http://" + c.ListenAddress)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse the listening address: %w", err)
+		return nil, fmt.Errorf(fmtErrInvalidListeningPort, err)
 	}
 	if port := listenUrl.Port(); port == "" {
 		return nil, ErrInvalidListenFormat
 	} else if portInt, err := strconv.Atoi(port); err != nil {
 		return nil, fmt.Errorf("invalid listening port format: %w", err)
 	} else if portInt <= 0 {
-		return nil, fmt.Errorf("cannot parse the listening address: %w", ErrInvalidPortTooLow)
+		return nil, ErrInvalidListeningPortTooLow
 	} else if portInt > 65535 {
-		return nil, fmt.Errorf("cannot parse the listening address: %w", ErrInvalidPortTooHigh)
+		return nil, ErrInvalidListeningPortTooHigh
 	} else {
 		c.ParsedListen = Addr{
 			Hostname: listenUrl.Hostname(),
@@ -105,16 +113,16 @@ func NewConfiguration() (*Configuration, error) {
 	log.Debug("Parsing the backend address", "backendAddr", c.ParsedBackend)
 	bckndUrl, err := url.Parse("tcp://" + c.BackendAddress)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse the backend address: %w", err)
+		return nil, fmt.Errorf(fmtErrInvalidBackendPort, err)
 	}
 	if port := bckndUrl.Port(); port == "" {
 		return nil, ErrInvalidListenFormat
 	} else if portInt, err := strconv.Atoi(port); err != nil {
 		return nil, fmt.Errorf("invalid backend port format: %w", err)
 	} else if portInt <= 0 {
-		return nil, fmt.Errorf("cannot parse the backend address: %w", ErrInvalidPortTooLow)
+		return nil, ErrInvalidBackendPortTooLow
 	} else if portInt > 65535 {
-		return nil, fmt.Errorf("cannot parse the backend address: %w", ErrInvalidPortTooHigh)
+		return nil, ErrInvalidBackendPortTooHigh
 	} else {
 		c.ParsedBackend = Addr{
 			Hostname: bckndUrl.Hostname(),
