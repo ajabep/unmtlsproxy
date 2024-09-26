@@ -42,7 +42,8 @@ jobs:
   testing:
     outputs:
       cover: ${{ steps.binary.outputs.cover }}
-      result:  ${{ steps.binary.outputs.result }}
+      tests:  ${{ steps.binary.outputs.tests }}
+      golangciLint:  ${{ steps.binary.outputs.golangciLint }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -64,7 +65,12 @@ jobs:
           go-version: '1.22'
 
       - name: Testing...
-        run: go test -coverprofile cover.out -v ./... -json >result.json
+        run: go test -coverprofile cover.out -v ./... -json >tests.json
+
+      - name: GoLangCi-Lint...
+        uses: golangci/golangci-lint-action@v6
+        with:
+          args: --timeout=30m --issues-exit-code=0 --out-format checkstyle
 
       - name: Generate binary hashes
         id: binary
@@ -72,7 +78,8 @@ jobs:
           set -euo pipefail
 
           echo "cover=$(cat cover.out | base64 -w0)" >> "$GITHUB_OUTPUT"
-          echo "result=$(echo result.json | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "tests=$(echo tests.json | base64 -w0)" >> "$GITHUB_OUTPUT"
+          echo "golangciLint=$(echo golangciLint.xml | base64 -w0)" >> "$GITHUB_OUTPUT"
 
 
   Analysis:
@@ -91,11 +98,13 @@ jobs:
       - name: Restore the cover and result files
         env:
           COVER_CONTENT: ${{ needs.testing.outputs.cover }}
-          RESULT_CONTENT: "${{ needs.testing.outputs.result }}"
+          TESTS_CONTENT: "${{ needs.testing.outputs.tests }}"
+          GOLANGCILINT_CONTENT: "${{ needs.testing.outputs.golangciLint }}"
         run: |
           set -euo pipefail
           echo "$COVER_CONTENT" | base64 -d >cover.out
-          echo "$RESULT_CONTENT" | base64 -d >result.json
+          echo "$TESTS_CONTENT" | base64 -d >tests.json
+          echo "$GOLANGCILINT_CONTENT" | base64 -d >golangciLint.xml
 
       - name: Analyze with SonarCloud
         uses: SonarSource/sonarcloud-github-action@eb211723266fe8e83102bac7361f0a05c3ac1d1b # v3.0.0
@@ -106,4 +115,5 @@ jobs:
           # Additional arguments for the sonarcloud scanner
           args:
             -Dsonar.go.coverage.reportPaths=coverage.out
-            -Dsonar.go.tests.reportPaths=report.json
+            -Dsonar.go.tests.reportPaths=tests.json
+            -Dsonar.go.golangci-lint.reportPaths=golangciLint.xml
