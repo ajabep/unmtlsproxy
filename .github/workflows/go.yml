@@ -37,9 +37,6 @@ jobs:
         version: "latest"
         install-go: false
 
-    - name: Go StaticCheck
-      run: go vet ./...
-
     - name: Build
       run: go build -v ./...
 
