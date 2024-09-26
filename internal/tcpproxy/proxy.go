@@ -68,7 +68,7 @@ func (p *proxy) handle(ctx context.Context, connection net.Conn) {
 	remote, err := tls.Dial("tcp", p.to.String(), p.tlsConfig)
 	if err != nil {
 		log.Error("Error connecting the backend", "err", err, "backend", p.to)
-		connection.Write([]byte(err.Error()))
+		_, _ = connection.Write([]byte(err.Error()))
 		return
 	}
 	defer remote.Close()

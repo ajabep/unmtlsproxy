@@ -34,7 +34,7 @@ type TlsServerCounter struct {
 
 const (
 	httpRefLine string = "GET / HTTP/"
-	tcpRefLine         = "R"
+	tcpRefLine  string = "R"
 )
 
 /**
@@ -147,13 +147,13 @@ func NewStartedTlsServerCounter(httpMode bool) (*TlsServerCounter, error) {
 					var reason string
 					re, ok := err.(tls.RecordHeaderError)
 					if ok && re.Conn != nil && bytes.Equal(re.RecordHeader[:5], []byte("GET /")) {
-						io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+						_, _ = io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
 						re.Conn.Close()
 						reason = "client sent an HTTP request to an HTTPS server"
 					} else {
 						reason = err.Error()
 					}
-					io.WriteString(re.Conn, fmt.Sprintf("HTTP/1.0 400 Bad Request\r\n\r\nhttp: TLS handshake error from %s: %v\n", tlsConn.RemoteAddr(), reason))
+					_, _ = io.WriteString(re.Conn, fmt.Sprintf("HTTP/1.0 400 Bad Request\r\n\r\nhttp: TLS handshake error from %s: %v\n", tlsConn.RemoteAddr(), reason))
 					fmt.Printf("http: TLS handshake error from %s: %v", tlsConn.RemoteAddr(), reason)
 					return
 				}

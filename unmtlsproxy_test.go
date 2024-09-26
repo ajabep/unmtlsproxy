@@ -629,7 +629,12 @@ func TestMainTcp(t *testing.T) {
 
 			connReader := bufio.NewReader(conn)
 
-			conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+			err = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+			if err != nil {
+				t.Errorf(unexpectedError, err)
+				return
+			}
+
 			body, err := io.ReadAll(connReader)
 			if err != nil {
 				if !errors.Is(err, os.ErrDeadlineExceeded) {
@@ -662,7 +667,12 @@ func TestMainTcp(t *testing.T) {
 					return
 				}
 
-				conn.SetReadDeadline(time.Time{})
+				err = conn.SetReadDeadline(time.Time{})
+				if err != nil {
+					t.Errorf(unexpectedError, err)
+					return
+				}
+
 				body, err = io.ReadAll(connReader)
 				if err != nil {
 					if !errors.Is(err, os.ErrDeadlineExceeded) {
@@ -878,9 +888,13 @@ func TestTcpIsSocketReusingDisabled(t *testing.T) {
 			defer conn.Close()
 			byteSent := make([]byte, 2)
 			for j := 0; j < 10; j++ {
-				conn.Write([]byte("R\n"))
+				_, err = conn.Write([]byte("R\n"))
+				if err != nil {
+					t.Errorf(unexpectedError, err)
+					continue
+				}
 
-				_, err := conn.Read(byteSent)
+				_, err = conn.Read(byteSent)
 				if err != nil {
 					t.Errorf(unexpectedError, err)
 					continue

@@ -77,7 +77,7 @@ func (m *MainSupervisor) Run(config map[string]string) (string, bool, error) {
 		m.cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", m.envName, rawArgs))
 
 		close(mainStarted)
-		m.cmd.Run()
+		_ = m.cmd.Run()
 		close(mainStopped)
 	}(config, mainStarted, mainStopped)
 
@@ -93,8 +93,8 @@ func (m *MainSupervisor) Run(config map[string]string) (string, bool, error) {
 }
 func (m *MainSupervisor) Close() {
 	if m.cmd != nil && m.cmd.Process != nil {
-		m.cmd.Process.Kill()
-		m.cmd.Process.Wait()
+		_ = m.cmd.Process.Kill()
+		_, _ = m.cmd.Process.Wait()
 	}
 	m.cmd = nil
 }
