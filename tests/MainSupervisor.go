@@ -100,11 +100,11 @@ func (m *MainSupervisor) Close() {
 
 // Cancel the current main run, if any, and set {cancel} instead
 func (m *MainSupervisor) ReplaceCancel(cancel context.CancelFunc) {
-	old_cancel := m.cancel.Swap(cancel)
-	if old_cancel != nil {
-		old_cancel_typed := old_cancel.(context.CancelFunc)
-		if old_cancel_typed != nil {
-			old_cancel_typed()
+	oldCancel := m.cancel.Swap(cancel)
+	if oldCancel != nil {
+		oldCancelTyped := oldCancel.(context.CancelFunc)
+		if oldCancelTyped != nil {
+			oldCancelTyped()
 		}
 	}
 }
