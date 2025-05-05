@@ -68,7 +68,7 @@ jobs:
         run: go test -coverprofile cover.out -v ./... -json >tests.json
 
       - name: GoLangCi-Lint...
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           args: --timeout=30m --issues-exit-code=0 --out-format checkstyle
 
