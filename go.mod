@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.5
 
 require (
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.9
 	go.aporeto.io/addedeffect v1.82.0
 	go.aporeto.io/tg v1.50.2-0.20240726190142-d7d9b061a4ea
 )
