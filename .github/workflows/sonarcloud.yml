@@ -65,7 +65,7 @@ jobs:
           go-version: '1.22'
 
       - name: Testing...
-        run: go test -coverprofile cover.out -v ./... -json >tests.json
+        run: go test -race -coverprofile cover.out -v ./... -json >tests.json
 
       - name: GoLangCi-Lint...
         uses: golangci/golangci-lint-action@v6

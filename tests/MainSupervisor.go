@@ -1,11 +1,13 @@
 package tests
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ type MainSupervisor struct {
 	testName string
 	main     MainFunc
 	cmd      *exec.Cmd
+	cancel   atomic.Value
 }
 
 // Will init a new supervisor to execute the main function without crashing the current program.
@@ -48,11 +51,9 @@ func NewMainSupervisor(t *testing.T, main MainFunc) *MainSupervisor {
 	return supervisor
 }
 
+// Run the main function in background, and return if it returns in the X first milliseconds.
 func (m *MainSupervisor) Run(config map[string]string) (string, bool, error) {
 	var err error
-	if m.cmd != nil {
-		m.Close()
-	}
 
 	addr, has := config["listen"]
 	if !has {
@@ -63,25 +64,25 @@ func (m *MainSupervisor) Run(config map[string]string) (string, bool, error) {
 		config["listen"] = addr
 	}
 
-	mainStarted := make(chan struct{}, 1)
-	mainStopped := make(chan struct{}, 2)
+	mainStopped := make(chan struct{})
 
-	go func(config map[string]string, mainStarted, mainStopped chan<- struct{}) {
-		jsonArgs, err := json.Marshal(config)
-		if err != nil {
-			panic(err)
-		}
-		rawArgs := base64.RawStdEncoding.EncodeToString(jsonArgs)
+	jsonArgs, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	rawArgs := base64.RawStdEncoding.EncodeToString(jsonArgs)
 
-		m.cmd = exec.Command(os.Args[0], fmt.Sprintf("-test.run=%s", m.testName))
+	ctx, cancel := context.WithCancel(context.Background())
+	m.ReplaceCancel(cancel)
+
+	go func() {
+		m.cmd = exec.CommandContext(ctx, os.Args[0], fmt.Sprintf("-test.run=%s", m.testName))
 		m.cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", m.envName, rawArgs))
 
-		close(mainStarted)
-		_ = m.cmd.Run()
+		m.cmd.Run()
 		close(mainStopped)
-	}(config, mainStarted, mainStopped)
+	}()
 
-	<-mainStarted
 	mainHasReturned := false
 	select {
 	case <-mainStopped:
@@ -91,10 +92,19 @@ func (m *MainSupervisor) Run(config map[string]string) (string, bool, error) {
 
 	return addr, mainHasReturned, nil
 }
+
+// Cancel the current main run
 func (m *MainSupervisor) Close() {
-	if m.cmd != nil && m.cmd.Process != nil {
-		_ = m.cmd.Process.Kill()
-		_, _ = m.cmd.Process.Wait()
+	m.ReplaceCancel(nil)
+}
+
+// Cancel the current main run, if any, and set {cancel} instead
+func (m *MainSupervisor) ReplaceCancel(cancel context.CancelFunc) {
+	oldCancel := m.cancel.Swap(cancel)
+	if oldCancel != nil {
+		oldCancelTyped := oldCancel.(context.CancelFunc)
+		if oldCancelTyped != nil {
+			oldCancelTyped()
+		}
 	}
-	m.cmd = nil
 }
